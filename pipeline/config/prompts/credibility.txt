@@ -1,0 +1,50 @@
+Analyze this historical travel journal entry for credibility and historical context.
+
+TEXT:
+{text}
+
+BOOK: {book_title}
+AUTHOR: {author_name}
+
+Return JSON with this exact structure:
+{{
+  "era_context": "historical era description",
+  "political_context": "political situation at the time",
+  "religious_context": "religious context if relevant",
+  "social_environment": "social conditions described",
+  "credibility": {{
+    "overall_score": 0.0 to 1.0,
+    "firsthand": true or false,
+    "personal_experience": {{
+      "score": 0.0 to 1.0,
+      "evidence": "brief evidence",
+      "flags": ["list of concerns"]
+    }},
+    "accuracy": {{
+      "score": 0.0 to 1.0,
+      "evidence": "brief evidence",
+      "flags": ["list of concerns"]
+    }},
+    "exaggeration": {{
+      "score": 0.0 to 1.0,
+      "evidence": "brief evidence",
+      "flags": ["list of concerns"]
+    }},
+    "fantasy_elements": {{
+      "score": 0.0 to 1.0,
+      "evidence": "brief evidence",
+      "flags": ["list of concerns"]
+    }},
+    "source_reliability": {{
+      "score": 0.0 to 1.0,
+      "evidence": "brief evidence",
+      "flags": ["list of concerns"]
+    }},
+    "cross_references": [
+      {{"source": "reference text", "agreement": "what it confirms"}}
+    ],
+    "scholarly_notes": "any scholarly commentary"
+  }}
+}}
+
+Return ONLY valid JSON.
