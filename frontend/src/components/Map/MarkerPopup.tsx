@@ -1,18 +1,13 @@
-interface MarkerLocation {
-  id: number;
-  name: string;
-  ancient_name?: string | null;
-  one_line_summary?: string | null;
-  location_type?: string | null;
-  ancient_region?: string | null;
-}
+import { useNavigate } from "react-router-dom";
+import type { MapLocation } from "./MapView";
 
 interface MarkerPopupProps {
-  location: MarkerLocation;
-  onSelect: (id: number) => void;
+  location: MapLocation;
 }
 
-export function MarkerPopup({ location, onSelect }: MarkerPopupProps) {
+export function MarkerPopup({ location }: MarkerPopupProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="min-w-[200px]">
       <h3 className="font-bold text-base mb-1">{location.name}</h3>
@@ -27,7 +22,7 @@ export function MarkerPopup({ location, onSelect }: MarkerPopupProps) {
         {location.ancient_region && <span>{location.ancient_region}</span>}
       </div>
       <button
-        onClick={() => onSelect(location.id)}
+        onClick={() => navigate(`/locations/${location.id}`)}
         className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
       >
         查看详情

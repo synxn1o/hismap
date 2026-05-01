@@ -45,7 +45,7 @@ function HomePage() {
           <ResultList entries={displayEntries} onSelect={setSelectedEntryId} selectedId={selectedEntryId} />
         </aside>
         <div className="flex-1">
-          <MapView locations={displayLocations} onLocationSelect={() => {}} />
+          <MapView locations={displayLocations} />
         </div>
         {selectedEntryId && (
           <div className="hidden md:block absolute right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg z-20">
