@@ -1,0 +1,21 @@
+Extract all text from this page image. Identify individual stories or narratives based on visual cues (chapter headings, spacing, decorative elements, paragraph breaks).
+
+Return JSON with this exact structure:
+{{
+  "text": "full extracted text of the page",
+  "stories": [
+    {{
+      "title": "story title if visible, otherwise empty string",
+      "text": "the story text on this page",
+      "continues_from_prev": false,
+      "continues_to_next": false
+    }}
+  ]
+}}
+
+Rules:
+- Each distinct story/narrative should be a separate entry in the stories array
+- Set continues_from_prev=true if this story is a continuation from the previous page
+- Set continues_to_next=true if this story continues on the next page
+- If the page has only one continuous text, return one story with the full text
+- Return ONLY valid JSON, no commentary
