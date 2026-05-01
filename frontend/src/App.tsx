@@ -34,26 +34,26 @@ function HomePage() {
 
   return (
     <div className="h-full flex flex-col">
-      <header className="h-14 border-b flex items-center px-4 gap-3 bg-white z-10">
+      <header className="h-14 border-b flex items-center px-4 gap-3 bg-white z-20">
         <h1 className="text-lg font-bold whitespace-nowrap">HiSMap</h1>
         <SearchBar onSearch={setSearchQuery} />
         <FilterPanel onChange={setFilters} />
       </header>
       <div className="flex-1 flex relative overflow-hidden">
-        <aside className="hidden md:block w-80 border-r overflow-y-auto bg-white z-10">
+        <aside className="hidden md:block w-80 border-r overflow-y-auto bg-white z-20">
           <div className="p-3 border-b text-sm text-gray-500">{displayEntries.length} 条游记</div>
           <ResultList entries={displayEntries} onSelect={setSelectedEntryId} selectedId={selectedEntryId} />
         </aside>
-        <div className="flex-1">
+        <div className="flex-1 relative z-0">
           <MapView locations={displayLocations} />
         </div>
         {selectedEntryId && (
-          <div className="hidden md:block absolute right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg z-20">
+          <div className="hidden md:block absolute right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg z-30">
             <EntryDetail entryId={selectedEntryId} onClose={() => setSelectedEntryId(null)} />
           </div>
         )}
         <div
-          className={`md:hidden absolute bottom-0 left-0 right-0 bg-white border-t shadow-lg transition-transform duration-300 z-20 ${
+          className={`md:hidden absolute bottom-0 left-0 right-0 bg-white border-t shadow-lg transition-transform duration-300 z-30 ${
             drawerOpen ? "translate-y-0" : "translate-y-[calc(100%-3rem)]"
           }`}
           style={{ maxHeight: "70vh" }}
