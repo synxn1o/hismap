@@ -1,0 +1,9 @@
+Translate the following historical travel journal text.
+
+Source language: {source_lang}
+Target language: {target_lang}
+
+TEXT:
+{text}
+
+Return ONLY the translation, no commentary or notes.
