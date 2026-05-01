@@ -20,6 +20,8 @@ class JournalEntry(BaseModel):
     religious_context: Mapped[str | None] = mapped_column(Text)
     social_environment: Mapped[str | None] = mapped_column(Text)
     visit_date_approximate: Mapped[str | None] = mapped_column(String(100))
+    credibility: Mapped[dict | None] = mapped_column(JSON)
+    annotations: Mapped[list | None] = mapped_column(JSON)
 
     book = relationship("Book", back_populates="entries", lazy="selectin")
     locations = relationship(
