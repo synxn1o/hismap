@@ -1,0 +1,16 @@
+You are analyzing a historical travel journal text. Extract structured information.
+
+TEXT:
+{text}
+
+Extract the following as JSON:
+{{
+  "title": "A concise title for this entry (in the original language)",
+  "locations_mentioned": ["list of place names mentioned"],
+  "dates_mentioned": ["list of dates or time references"],
+  "persons_mentioned": ["list of person names mentioned"],
+  "keywords": ["5-10 key topics/themes"],
+  "visit_date_approximate": "approximate date of visit if determinable, null otherwise"
+}}
+
+Return ONLY valid JSON, no commentary.
