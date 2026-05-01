@@ -1,0 +1,61 @@
+<!-- pipeline/review/static/index.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HiSMap Pipeline Review</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f5f5f5; }
+    .btn { padding: 4px 12px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; }
+    .btn-approve { background: #10b981; color: white; border-color: #10b981; }
+    .btn-reject { background: #ef4444; color: white; border-color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>Pipeline Review Dashboard</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Source</th>
+        <th>Stage</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="runs"></tbody>
+  </table>
+  <script>
+    async function loadRuns() {
+      const res = await fetch('/api/review/runs');
+      const runs = await res.json();
+      const tbody = document.getElementById('runs');
+      tbody.innerHTML = runs.map(r => `
+        <tr>
+          <td>#${r.id}</td>
+          <td>${r.source_file}</td>
+          <td>${r.current_stage}/7</td>
+          <td>${r.human_review_status}</td>
+          <td>
+            <button class="btn btn-approve" onclick="approve(${r.id})">Approve</button>
+            <button class="btn btn-reject" onclick="reject(${r.id})">Reject</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    async function approve(id) {
+      await fetch(`/api/review/runs/${id}/approve`, { method: 'POST' });
+      loadRuns();
+    }
+    async function reject(id) {
+      await fetch(`/api/review/runs/${id}/reject`, { method: 'POST' });
+      loadRuns();
+    }
+    loadRuns();
+  </script>
+</body>
+</html>
