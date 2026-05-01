@@ -11,8 +11,9 @@ from pipeline.models import IngestResult
 
 def make_book_slug(file_path: str) -> str:
     """Derive a normalized book slug from filename."""
-    name = Path(file_path).stem
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    name = Path(file_path).stem.lower()
+    # Keep unicode word chars (letters, digits, CJK), replace separators with hyphens
+    slug = re.sub(r"[^\w]+", "-", name, flags=re.UNICODE).strip("-")
     return slug or "unknown"
 
 
