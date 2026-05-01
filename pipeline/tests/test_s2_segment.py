@@ -4,9 +4,9 @@ import json
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
-from pipeline.models import IngestResult, SegmentResultV2, TextSegment
+from pipeline.models import IngestResult, SegmentResultV2
 
 
 def _make_ingest(raw_text: str, book_slug: str = "test-book", language: str = "en",

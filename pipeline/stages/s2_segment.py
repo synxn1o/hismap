@@ -5,16 +5,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from langdetect import detect
-
 from pipeline.models import ExtractedStory, IngestResult, SegmentInfo, SegmentResultV2
-
-
-def detect_language(text: str) -> str:
-    try:
-        return detect(text[:500])
-    except Exception:
-        return "unknown"
 
 
 def segment_by_headings(text: str) -> list[dict]:
