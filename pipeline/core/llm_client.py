@@ -107,9 +107,9 @@ class LLMClient:
                 await asyncio.sleep(2)
         return ""
 
-    async def extract_json(self, prompt: str, system: str = "") -> str:
+    async def extract_json(self, prompt: str, system: str = "", max_tokens: int | None = None) -> str:
         """Chat and extract JSON from response, stripping markdown fences."""
-        raw = await self.chat(prompt, system)
+        raw = await self.chat(prompt, system, max_tokens=max_tokens)
         # Strip markdown code fences
         if raw.startswith("```"):
             lines = raw.split("\n")

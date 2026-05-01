@@ -47,21 +47,53 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             continue
 
         prompt = prompt_template.format(text=story.original_text)
+        print(f"    [{seg_info.id}] extracting...", end=" ", flush=True)
 
         try:
-            raw = await llm.chat_with_tools(
-                prompt=prompt,
-                system="You are a historical text analysis expert.",
-                tools=EXTRACTION_TOOLS,
-                response_format={"type": "json_object"},
-            )
+            try:
+                raw = await llm.chat_with_tools(
+                    prompt=prompt,
+                    system="You are a historical text analysis expert.",
+                    tools=EXTRACTION_TOOLS,
+                    response_format={"type": "json_object"},
+                    max_tokens=8192,
+                )
+            except Exception:
+                # Fallback: tools not supported by this API, use plain chat
+                raw = await llm.extract_json(
+                    prompt=prompt,
+                    system="You are a historical text analysis expert. Be concise. Return ONLY valid JSON.",
+                    max_tokens=8192,
+                )
+
+            if not raw or not raw.strip():
+                raise ValueError("LLM returned empty response")
 
             if raw.startswith("```"):
                 lines = raw.split("\n")
                 lines = [l for l in lines if not l.startswith("```")]
                 raw = "\n".join(lines)
 
-            extracted = json.loads(raw)
+            try:
+                extracted = json.loads(raw)
+            except json.JSONDecodeError:
+                # Try to recover malformed/truncated JSON
+                fixed = raw.rstrip()
+                # Remove trailing comma
+                if fixed.endswith(','):
+                    fixed = fixed[:-1]
+                # Remove trailing comma before ] or }
+                import re
+                fixed = re.sub(r',(\s*[\]}])', r'\1', fixed)
+                # Close any open strings
+                if fixed.count('"') % 2 != 0:
+                    fixed += '"'
+                # Close open arrays and objects
+                open_brackets = fixed.count('[') - fixed.count(']')
+                open_braces = fixed.count('{') - fixed.count('}')
+                fixed += ']' * max(0, open_brackets)
+                fixed += '}' * max(0, open_braces)
+                extracted = json.loads(fixed)
 
             story.book_metadata = extracted.get("book_metadata")
             story.story_metadata = extracted.get("story_metadata")
@@ -73,11 +105,13 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             story.error = None
 
             stats["processed"] += 1
+            print("OK")
 
         except Exception as e:
             story.extracted = False
             story.error = str(e)[:500]
             stats["failed"] += 1
+            print(f"FAIL: {story.error[:80]}")
 
         story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
 

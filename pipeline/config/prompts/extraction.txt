@@ -1,4 +1,4 @@
-You are analyzing a historical travel journal story. Extract structured information in a single pass.
+You are analyzing a historical travel journal story. Extract structured information in a single pass. Be concise — use short phrases, not full sentences.
 
 STORY TEXT:
 {text}

@@ -162,20 +162,28 @@ async def test_ocr_path(config: dict):
         print(f"    {seg.id}: {seg.title}")
 
 
-async def run_extraction(segment_result, config: dict):
-    """Run S3 extraction on a segment result."""
-    print(f"\n  [S3] Extracting {len(segment_result.segments)} stories...")
+async def run_extraction(segment_result, config: dict, limit: int = 3):
+    """Run S3 extraction on a segment result (limited to first N stories)."""
+    from pipeline.models import SegmentResultV2
+    test_segments = segment_result.segments[:limit]
+    test_result = SegmentResultV2(
+        book_slug=segment_result.book_slug,
+        language=segment_result.language,
+        segments=test_segments,
+    )
+    print(f"\n  [S3] Extracting {len(test_segments)} of {len(segment_result.segments)} stories...")
     llm = LLMClient(config)
-    stats = await extract(segment_result, llm)
+    stats = await extract(test_result, llm)
     print(f"  processed: {stats['processed']}, skipped: {stats['skipped']}, failed: {stats['failed']}")
 
-    if segment_result.segments:
-        first = segment_result.segments[0]
+    if test_result.segments:
+        first = test_result.segments[0]
         data = json.loads(Path(first.file_path).read_text())
         if data.get("book_metadata"):
             print(f"  book: {data['book_metadata'].get('title', '?')}")
-        if data.get("entities", {}).get("locations"):
-            locs = [l["name"] for l in data["entities"]["locations"]]
+        entities = data.get("entities") or {}
+        if entities.get("locations"):
+            locs = [l["name"] for l in entities["locations"]]
             print(f"  locations: {', '.join(locs[:5])}")
 
 
