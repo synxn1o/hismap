@@ -1,0 +1,21 @@
+llm:
+  base_url: "https://api.anthropic.com/v1"
+  api_key: "${ANTHROPIC_API_KEY}"
+  model: "claude-sonnet-4-6"
+  max_tokens: 4096
+  temperature: 0.1
+
+ocr:
+  base_url: "https://api.openai.com/v1"
+  api_key: "${OCR_API_KEY}"
+  model: "gpt-4o"
+  dpi: 200
+  max_tokens: 4096
+
+cost_limits:
+  max_cost_per_run: 5.00
+  max_tokens_per_entry: 8000
+  max_entries_per_run: 500
+
+database:
+  url: "postgresql+asyncpg://hismap:hismap@localhost:5432/hismap"
