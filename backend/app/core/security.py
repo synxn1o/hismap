@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -7,9 +8,9 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# In production, store in DB. For v1, hardcoded admin.
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD_HASH = pwd_context.hash("admin123")
+ADMIN_USERNAME = os.environ.get("HISMAP_ADMIN_USER", "admin")
+_admin_pw = os.environ.get("HISMAP_ADMIN_PASSWORD", "")
+ADMIN_PASSWORD_HASH = pwd_context.hash(_admin_pw) if _admin_pw else ""
 
 
 def verify_password(plain: str, hashed: str) -> bool:

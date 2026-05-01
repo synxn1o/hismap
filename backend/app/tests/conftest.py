@@ -1,6 +1,12 @@
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Set admin password env var BEFORE importing app modules (security.py reads at import time)
+os.environ.setdefault("HISMAP_ADMIN_PASSWORD", "admin123")
+os.environ.setdefault("HISMAP_SECRET_KEY", "test-secret-key-for-testing-only")
 
 from app.core import database
 from app.core.database import Base
