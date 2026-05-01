@@ -162,6 +162,7 @@ async def test_extract_handles_llm_failure(tmp_path, mock_llm):
     path.write_text(story.model_dump_json(indent=2))
 
     mock_llm.chat_with_tools.side_effect = Exception("API error")
+    mock_llm.extract_json = AsyncMock(side_effect=Exception("API error"))
 
     segment = SegmentInfo(
         id="test-en-003",
