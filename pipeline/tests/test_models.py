@@ -10,6 +10,11 @@ from pipeline.models import (
     AnalyzedResult,
     CredibilityReport,
     ScoredDimension,
+    # v2 models
+    SegmentInfo,
+    SegmentResultV2,
+    ExtractedStory,
+    OutputResult,
 )
 
 
@@ -56,3 +61,64 @@ def test_credibility_report():
         source_reliability=dim,
     )
     assert report.overall_score == 0.75
+
+
+# === v2 model tests ===
+
+
+def test_v2_ingest_result_has_new_fields():
+    r = IngestResult(
+        source_file="test.pdf",
+        file_type="pdf_digital",
+        raw_text="hello world",
+        page_count=5,
+        ocr_method="direct",
+        book_slug="test-book",
+        detected_language="en",
+    )
+    assert r.book_slug == "test-book"
+    assert r.detected_language == "en"
+
+
+def test_segment_info():
+    s = SegmentInfo(
+        id="test-book-en-001",
+        title="Chapter 1",
+        file_path="/tmp/test-book-en-001.json",
+        original_text_preview="First 200 chars...",
+    )
+    assert s.id == "test-book-en-001"
+    assert s.file_path.endswith(".json")
+
+
+def test_v2_segment_result():
+    s = SegmentInfo(
+        id="test-book-en-001",
+        title="Chapter 1",
+        file_path="/tmp/test-book-en-001.json",
+        original_text_preview="preview",
+    )
+    r = SegmentResultV2(book_slug="test-book", language="en", segments=[s])
+    assert r.book_slug == "test-book"
+    assert len(r.segments) == 1
+
+
+def test_extracted_story():
+    s = ExtractedStory(
+        id="test-book-en-001",
+        book_slug="test-book",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Full story text here...",
+        source_type="text",
+        page_range=[1, 3],
+        extracted=True,
+    )
+    assert s.extracted is True
+    assert s.error is None
+
+
+def test_output_result():
+    r = OutputResult(books=1, authors=1, locations=5, entries=10)
+    assert r.entries == 10

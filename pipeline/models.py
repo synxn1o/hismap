@@ -11,6 +11,10 @@ class IngestResult(BaseModel):
     page_count: int
     ocr_method: str  # "google_vision" | "vision_llm" | "direct"
     metadata: dict = {}
+    # v2 additions
+    book_slug: str = ""
+    detected_language: str = "unknown"
+    ocr_pages: list[dict] = []  # per-page OCR results for scanned PDFs
 
 
 # Stage 2 output
@@ -150,6 +154,52 @@ class AnalyzedEntry(TranslatedEntry):
 class AnalyzedResult(BaseModel):
     entries: list[AnalyzedEntry]
     credibility_reports: list[CredibilityReport]
+
+
+# === Pipeline v2 models ===
+
+
+class SegmentInfo(BaseModel):
+    id: str
+    title: str
+    file_path: str
+    original_text_preview: str  # first 200 chars for logging
+
+
+class SegmentResultV2(BaseModel):
+    """v2 segment result — replaces v1 SegmentResult."""
+    book_slug: str
+    language: str
+    segments: list[SegmentInfo]
+
+
+class ExtractedStory(BaseModel):
+    """Represents a single story JSON file on disk."""
+    id: str
+    book_slug: str
+    language: str
+    sequence: int
+    title: str
+    original_text: str
+    source_type: str  # "text" | "ocr"
+    page_range: list[int] = []
+    created_at: str = ""
+    extracted: bool = False
+    error: str | None = None
+    # Extracted fields (populated by S3)
+    book_metadata: dict | None = None
+    story_metadata: dict | None = None
+    entities: dict | None = None
+    translations: dict | None = None
+    credibility: dict | None = None
+    annotations: list[dict] | None = None
+
+
+class OutputResult(BaseModel):
+    books: int = 0
+    authors: int = 0
+    locations: int = 0
+    entries: int = 0
 
 
 # Pipeline state
