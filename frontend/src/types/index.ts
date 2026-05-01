@@ -22,7 +22,7 @@ export interface RelatedLocation {
 }
 
 export interface LocationDetail extends Location {
-  entries: JournalEntry[];
+  entries: JournalEntryDetail[];
   related_locations: RelatedLocation[];
 }
 
