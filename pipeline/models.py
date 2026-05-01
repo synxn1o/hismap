@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -181,7 +183,7 @@ class ExtractedStory(BaseModel):
     sequence: int
     title: str
     original_text: str
-    source_type: str  # "text" | "ocr"
+    source_type: Literal["text", "ocr"]  # "text" | "ocr"
     page_range: list[int] = []
     created_at: str = ""
     extracted: bool = False

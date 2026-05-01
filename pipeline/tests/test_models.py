@@ -122,3 +122,36 @@ def test_extracted_story():
 def test_output_result():
     r = OutputResult(books=1, authors=1, locations=5, entries=10)
     assert r.entries == 10
+
+
+def test_extracted_story_default_extracted_is_false():
+    s = ExtractedStory(
+        id="t-001", book_slug="t", language="en", sequence=1,
+        title="T", original_text="text", source_type="text",
+    )
+    assert s.extracted is False
+    assert s.error is None
+    assert s.book_metadata is None
+
+
+def test_extracted_story_serialization_roundtrip():
+    s = ExtractedStory(
+        id="t-001", book_slug="t", language="en", sequence=1,
+        title="T", original_text="text", source_type="text",
+        extracted=True, credibility={"score": 0.9},
+    )
+    json_str = s.model_dump_json()
+    s2 = ExtractedStory.model_validate_json(json_str)
+    assert s2.id == s.id
+    assert s2.extracted is True
+    assert s2.credibility == {"score": 0.9}
+
+
+def test_extracted_story_source_type_literal():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        ExtractedStory(
+            id="t-001", book_slug="t", language="en", sequence=1,
+            title="T", original_text="text", source_type="invalid",
+        )
