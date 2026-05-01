@@ -1,16 +1,60 @@
-You are analyzing a historical travel journal text. Extract structured information.
+You are analyzing a historical travel journal story. Extract structured information in a single pass.
 
-TEXT:
+STORY TEXT:
 {text}
 
-Extract the following as JSON:
+Extract ALL of the following as a single JSON object:
+
 {{
-  "title": "A concise title for this entry (in the original language)",
-  "locations_mentioned": ["list of place names mentioned"],
-  "dates_mentioned": ["list of dates or time references"],
-  "persons_mentioned": ["list of person names mentioned"],
-  "keywords": ["5-10 key topics/themes"],
-  "visit_date_approximate": "approximate date of visit if determinable, null otherwise"
+  "book_metadata": {{
+    "title": "book title",
+    "author": "author name or null",
+    "dynasty": "dynasty/era or null",
+    "era_start": null,
+    "era_end": null,
+    "author_biography": "brief author bio or null"
+  }},
+  "story_metadata": {{
+    "title": "story/chapter title",
+    "chapter_reference": "chapter reference if any",
+    "visit_date_approximate": "approximate date of events described"
+  }},
+  "entities": {{
+    "locations": [
+      {{
+        "name": "location name",
+        "modern_name": "modern name",
+        "ancient_name": "historical name",
+        "lat": 0.0,
+        "lng": 0.0,
+        "location_type": "city/region/river/mountain/temple/pass/port/route/other",
+        "one_line_summary": "one line about this location"
+      }}
+    ],
+    "persons": ["person names mentioned"],
+    "dates": ["dates or time references"],
+    "keywords": ["5-10 key topics/themes"]
+  }},
+  "translations": {{
+    "modern_chinese": "modern Chinese translation if source is classical Chinese, else null",
+    "english": "English translation if source is non-English, else null"
+  }},
+  "credibility": {{
+    "era_context": "historical era description",
+    "political_context": "political situation",
+    "religious_context": "religious context if relevant",
+    "social_environment": "social conditions",
+    "credibility_score": 0.0,
+    "notes": "credibility notes"
+  }},
+  "annotations": [
+    {{
+      "source": "web_search",
+      "query": "search query used",
+      "url": "source URL",
+      "snippet": "relevant snippet"
+    }}
+  ]
 }}
 
-Return ONLY valid JSON, no commentary.
+Return ONLY valid JSON.
