@@ -3,18 +3,9 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 from pipeline.models import (
     IngestResult,
-    SegmentResult,
-    TextSegment,
-    EntityResult,
-    ExtractedEntry,
-    GeocodedResult,
-    GeocodedEntry,
-    TranslatedResult,
-    TranslatedEntry,
-    AnalyzedResult,
-    AnalyzedEntry,
-    CredibilityReport,
-    ScoredDimension,
+    SegmentResultV2,
+    SegmentInfo,
+    OutputResult,
 )
 
 
@@ -22,40 +13,46 @@ from pipeline.models import (
 async def test_run_pipeline_dry_run():
     """Test pipeline stages are called in order with mocked LLM."""
     mock_ingest = IngestResult(
-        source_file="test.txt", file_type="text", raw_text="马可·波罗到达泉州", page_count=1, ocr_method="direct"
+        source_file="test.txt",
+        file_type="text",
+        raw_text="Marco Polo traveled to Beijing.",
+        page_count=1,
+        ocr_method="direct",
+        book_slug="test",
+        detected_language="en",
     )
-    mock_segment = SegmentResult(segments=[
-        TextSegment(segment_id="s1", text="马可·波罗到达泉州", language="zh-cn")
-    ])
-    mock_entity = EntityResult(entries=[
-        ExtractedEntry(
-            segment_id="s1", title="泉州见闻",
-            original_text="马可·波罗到达泉州",
-            locations_mentioned=["泉州"], dates_mentioned=["1292"],
-            persons_mentioned=["马可·波罗"], keywords=["泉州"],
-        )
-    ])
-
-    dim = ScoredDimension(score=0.8, evidence="test")
+    mock_segment = SegmentResultV2(
+        book_slug="test",
+        language="en",
+        segments=[
+            SegmentInfo(
+                id="test-en-001",
+                title="Segment 1",
+                file_path="/tmp/test-en-001.json",
+                original_text_preview="Marco Polo traveled...",
+            )
+        ],
+    )
+    mock_extract_stats = {"processed": 1, "skipped": 0, "failed": 0}
 
     with (
-        patch("pipeline.runner.ingest", return_value=mock_ingest),
-        patch("pipeline.runner.segment", return_value=mock_segment),
-        patch("pipeline.runner.extract_entities", return_value=mock_entity),
-        patch("pipeline.runner.geocode_locations", return_value=GeocodedResult(entries=[
-            GeocodedEntry(segment_id="s1", title="泉州见闻", original_text="马可·波罗到达泉州", location_links=[])
-        ], locations=[])),
-        patch("pipeline.runner.translate_entries", return_value=TranslatedResult(entries=[
-            TranslatedEntry(segment_id="s1", title="泉州见闻", original_text="马可·波罗到达泉州", location_links=[])
-        ])),
-        patch("pipeline.runner.analyze_entries", return_value=AnalyzedResult(
-            entries=[AnalyzedEntry(segment_id="s1", title="泉州见闻", original_text="马可·波罗到达泉州", location_links=[])],
-            credibility_reports=[],
-        )),
+        patch("pipeline.runner.ingest", return_value=mock_ingest) as m_ingest,
+        patch("pipeline.runner.segment", return_value=mock_segment) as m_segment,
+        patch("pipeline.runner.extract", return_value=mock_extract_stats) as m_extract,
     ):
         from pipeline.runner import run_pipeline
-        results = await run_pipeline("test.txt", {"llm": {"base_url": "x", "api_key": "x", "model": "x"}})
+        results = await run_pipeline(
+            "test.txt",
+            config={"llm": {"base_url": "x", "api_key": "x", "model": "x"}},
+            skip_output=True,
+        )
+
+        m_ingest.assert_called_once()
+        m_segment.assert_called_once()
+        m_extract.assert_called_once()
 
         assert "ingest" in results
-        assert "analyzed" in results
-        assert len(results["entity"].entries) == 1
+        assert "segment" in results
+        assert "extract" in results
+        assert "output" in results
+        assert results["extract"]["processed"] == 1
