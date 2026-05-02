@@ -1,4 +1,4 @@
-import { useEntry } from "@/api/hooks";
+import { useEntry, useStoryContent } from "@/api/hooks";
 import { X } from "lucide-react";
 
 interface EntryDetailProps {
@@ -8,6 +8,7 @@ interface EntryDetailProps {
 
 export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
   const { data: entry, isLoading } = useEntry(entryId);
+  const { data: story, isLoading: storyLoading } = useStoryContent(entry?.original_text ?? null);
 
   if (isLoading) {
     return (
@@ -43,29 +44,35 @@ export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
         {/* Original text */}
         <div>
           <h3 className="text-sm font-medium text-gray-500 mb-1">原文</h3>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.original_text}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {story?.original_text ?? entry.original_text}
+          </p>
         </div>
 
         {/* Translations */}
-        {entry.modern_translation && (
+        {(story?.translations?.modern_chinese ?? entry.modern_translation) && (
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">白话译文</h3>
-            <p className="text-sm leading-relaxed">{entry.modern_translation}</p>
+            <p className="text-sm leading-relaxed">
+              {story?.translations?.modern_chinese ?? entry.modern_translation}
+            </p>
           </div>
         )}
-        {entry.english_translation && (
+        {(story?.translations?.english ?? entry.english_translation) && (
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">English Translation</h3>
-            <p className="text-sm leading-relaxed italic">{entry.english_translation}</p>
+            <p className="text-sm leading-relaxed italic">
+              {story?.translations?.english ?? entry.english_translation}
+            </p>
           </div>
         )}
 
         {/* Keywords */}
-        {entry.keywords && entry.keywords.length > 0 && (
+        {(story?.entities?.keywords ?? entry.keywords) && (
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">关键词</h3>
             <div className="flex flex-wrap gap-1">
-              {entry.keywords.map((kw) => (
+              {(story?.entities?.keywords ?? entry.keywords)?.map((kw) => (
                 <span key={kw} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
                   {kw}
                 </span>
@@ -74,17 +81,30 @@ export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
           </div>
         )}
 
-        {/* Context */}
-        {entry.political_context && (
+        {/* Credibility */}
+        {story?.credibility && (
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">政治背景</h3>
-            <p className="text-sm">{entry.political_context}</p>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">可信度</h3>
+            {story.credibility.credibility_score !== undefined && (
+              <p className="text-sm">评分: {story.credibility.credibility_score}</p>
+            )}
+            {story.credibility.notes && (
+              <p className="text-sm text-gray-600">{story.credibility.notes}</p>
+            )}
           </div>
         )}
-        {entry.social_environment && (
+
+        {/* Context */}
+        {(story?.credibility?.political_context ?? entry.political_context) && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">政治背景</h3>
+            <p className="text-sm">{story?.credibility?.political_context ?? entry.political_context}</p>
+          </div>
+        )}
+        {(story?.credibility?.social_environment ?? entry.social_environment) && (
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">社会环境</h3>
-            <p className="text-sm">{entry.social_environment}</p>
+            <p className="text-sm">{story?.credibility?.social_environment ?? entry.social_environment}</p>
           </div>
         )}
       </div>
