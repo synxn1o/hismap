@@ -63,6 +63,28 @@ Before S3 extraction, a one-time LLM call summarizes the book's preface/序言:
 3. Result stored as `book_summary` in book metadata
 4. This summary is injected into every S3 extraction call as context item #1
 
+### Draft Script Engineering
+
+The three draft scripts need engineering refactoring before integration:
+
+**`chapter_detector.py`** — most mature, needs:
+- Add unit tests for each detector (currently no tests)
+- Fix `RTFHeadingDetector.detect()` to work through the chain (currently returns None for plain text)
+- Add edge case tests: empty text, single paragraph, very short text, mixed language
+- Validate scoring function with known-good splits
+
+**`draft_toc_mapper.py`** — needs:
+- Add unit tests for `parse_toc_text()`, `calculate_offset()`, `_match_toc_entries()`
+- Test with real TOC samples (Chinese dotted-line style, Arabic, English)
+- Integrate into S1 as optional preprocessing step
+- Handle edge cases: no TOC found, OCR failure, offset calculation failure
+
+**`draft_ocr_improved.py`** — needs:
+- Add unit tests for `validate_ocr_result()`, prompt construction
+- Test quality validation with known-good/bad OCR outputs
+- Integrate into S1 as replacement for current `OCRClient` when `BookContext` is available
+- Handle API failures and retry logic
+
 ### Backward Compatibility
 
 - If `chapter_detector` finds < 2 chapters, fall back to regex heading detection
@@ -214,7 +236,7 @@ pipeline/config/prompts/
 ├── book_summary.txt            # Preface summarization (one-time per book)
 ```
 
-The combined prompt structure:
+The combined prompt structure (all prompts written in English):
 - **System role**: historical text analysis expert
 - **Context block**: all 7 context items (book summary, metadata, chapter info, adjacent chapters, known entities, language rules)
 - **Task description**: filter non-content, segment multi-story chunks, extract all fields
@@ -222,12 +244,60 @@ The combined prompt structure:
 - **Output JSON schema**: exact structure with `entries[]` containing anchors + extraction data
 - **Anti false-positive rules**: explicit criteria for truncation and non-content detection
 
+All prompt templates must be written in English, even when processing Chinese/Arabic source texts.
+
 ### Tool Usage
 
-- `web_search` tool attached to the extraction call
-- LLM decides when to search (for unfamiliar place names, historical figures)
+Tools are passed in the LLM request body as `tools=[...]`, read from `config.yaml` under `extratools`:
+
+```yaml
+# config/config.yaml
+extratools:
+  - type: function
+    function:
+      name: web_search
+      description: "Search the web for historical context about places, people, or events"
+      parameters:
+        type: object
+        properties:
+          query:
+            type: string
+            description: "Search query"
+        required: ["query"]
+```
+
+S3 constructs the LLM call as:
+```python
+response = await llm.client.chat.completions.create(
+    model=llm.model,
+    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+    tools=config.get("extratools", []),
+    response_format={"type": "json_object"},
+)
+```
+
+- LLM decides when to invoke tools (for unfamiliar place names, historical figures)
+- Tool results are parsed and written into `annotations[]`
 - `max_keywords=3`, `limit=2` per search, `force_search=False`
-- Search results go into `annotations[]`
+
+### Config Changes (`config/config.yaml`)
+
+Add `extratools` section for tool definitions passed to LLM requests:
+
+```yaml
+extratools:
+  - type: function
+    function:
+      name: web_search
+      description: "Search the web for historical context about places, people, or events"
+      parameters:
+        type: object
+        properties:
+          query:
+            type: string
+            description: "Search query"
+        required: ["query"]
+```
 
 ---
 
@@ -357,18 +427,19 @@ interface JournalEntry {
 
 ## Implementation Order
 
-1. **Pipeline models** — update `ExtractedStory` in `models.py`
-2. **S2 refactor** — integrate `chapter_detector`, update `s2_segment.py`
-3. **Book summary extraction** — preface detection + summarization in S1/S2
-4. **S2.5** — add anchor-matching subdivision (optional, user-triggered)
-5. **S3 refactor** — new combined prompt, context injection, anchor matching
-6. **Prompt templates** — write `extraction_combined.txt`, `extraction_subdivide.txt`, `book_summary.txt`
-7. **S4 refactor** — read new fields, write to new columns
-8. **Backend model** — add/remove columns, update schemas
-9. **Alembic migration** — generate and apply migration
-10. **Frontend types** — update TypeScript interfaces
-11. **Frontend components** — ResultList, EntryDetail, new EntryPage
-12. **Frontend routing** — add `/entries/:id` route
+1. **Draft script engineering** — refactor and test `chapter_detector.py`, `draft_toc_mapper.py`, `draft_ocr_improved.py`
+2. **Pipeline models** — update `ExtractedStory` in `models.py`
+3. **S2 refactor** — integrate `chapter_detector`, update `s2_segment.py`
+4. **Book summary extraction** — preface detection + summarization in S1/S2
+5. **S2.5** — add anchor-matching subdivision (optional, user-triggered)
+6. **S3 refactor** — new combined prompt, context injection, anchor matching, tool config from `config.yaml`
+7. **Prompt templates** — write `extraction_combined.txt`, `extraction_subdivide.txt`, `book_summary.txt` (all in English)
+8. **S4 refactor** — read new fields, write to new columns
+9. **Backend model** — add/remove columns, update schemas
+10. **Alembic migration** — generate and apply migration
+11. **Frontend types** — update TypeScript interfaces
+12. **Frontend components** — ResultList, EntryDetail, new EntryPage
+13. **Frontend routing** — add `/entries/:id` route
 
 ---
 
