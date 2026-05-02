@@ -1,13 +1,15 @@
 import { useEntry, useStoryContent } from "@/api/hooks";
 import { Link } from "react-router-dom";
 import { X } from "lucide-react";
+import type { Language } from "@/lib/language";
 
 interface EntryDetailProps {
   entryId: number;
   onClose: () => void;
+  language?: Language;
 }
 
-export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
+export function EntryDetail({ entryId, onClose, language = 'zh' }: EntryDetailProps) {
   const { data: entry, isLoading } = useEntry(entryId);
   const { data: story } = useStoryContent(entry?.original_text ?? null);
 
@@ -65,8 +67,17 @@ export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
         {(entry.summary_chinese || entry.summary_english) && (
           <div className="mb-4">
             <h4 className="text-sm font-semibold text-gray-700 mb-1">Summary</h4>
-            {entry.summary_chinese && <p className="text-sm text-gray-600">{entry.summary_chinese}</p>}
-            {entry.summary_english && <p className="text-sm text-gray-500 mt-1">{entry.summary_english}</p>}
+            {language === 'zh' ? (
+              <>
+                {entry.summary_chinese && <p className="text-sm text-gray-600">{entry.summary_chinese}</p>}
+                {entry.summary_english && <p className="text-sm text-gray-500 mt-1">{entry.summary_english}</p>}
+              </>
+            ) : (
+              <>
+                {entry.summary_english && <p className="text-sm text-gray-600">{entry.summary_english}</p>}
+                {entry.summary_chinese && <p className="text-sm text-gray-500 mt-1">{entry.summary_chinese}</p>}
+              </>
+            )}
           </div>
         )}
 

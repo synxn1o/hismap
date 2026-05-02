@@ -1,6 +1,7 @@
 import { useFilters } from "@/api/hooks";
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import { getLanguage, setLanguage as storeLanguage, type Language } from "@/lib/language";
 
 export interface FilterState {
   dynasty: string;
@@ -10,12 +11,14 @@ export interface FilterState {
 
 interface FilterPanelProps {
   onChange: (filters: FilterState) => void;
+  onLanguageChange?: (lang: Language) => void;
 }
 
-export function FilterPanel({ onChange }: FilterPanelProps) {
+export function FilterPanel({ onChange, onLanguageChange }: FilterPanelProps) {
   const { data: filterOptions } = useFilters();
   const [filters, setFilters] = useState<FilterState>({ dynasty: "", locationType: "", era: "" });
   const [open, setOpen] = useState(false);
+  const [lang, setLang] = useState<Language>(getLanguage);
 
   const update = (key: keyof FilterState, value: string) => {
     const next = { ...filters, [key]: value };
@@ -23,10 +26,24 @@ export function FilterPanel({ onChange }: FilterPanelProps) {
     onChange(next);
   };
 
+  const toggleLanguage = () => {
+    const next: Language = lang === 'zh' ? 'en' : 'zh';
+    setLang(next);
+    storeLanguage(next);
+    onLanguageChange?.(next);
+  };
+
   if (!filterOptions) return null;
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-2">
+      <button
+        onClick={toggleLanguage}
+        className="flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+        title={lang === 'zh' ? 'Switch to English' : '切换到中文'}
+      >
+        {lang === 'zh' ? '中/EN' : 'EN/中'}
+      </button>
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"

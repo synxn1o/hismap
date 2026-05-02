@@ -11,6 +11,7 @@ import { LocationPage } from "./pages/LocationPage";
 import EntryPage from "./pages/EntryPage";
 import { useEntries, useLocations, useSearch } from "./api/hooks";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import { getLanguage, type Language } from "./lib/language";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ function haversineDistance(
 
 function HomePage() {
   const [filters, setFilters] = useState<FilterState>({ dynasty: "", locationType: "", era: "" });
+  const [language, setLanguage] = useState<Language>(getLanguage);
   const { data: locations = [] } = useLocations({
     dynasty: filters.dynasty || undefined,
     type: filters.locationType || undefined,
@@ -105,7 +107,7 @@ function HomePage() {
       <header className="h-14 border-b flex items-center px-4 gap-3 bg-white z-20">
         <h1 className="text-lg font-bold whitespace-nowrap">HiSMap</h1>
         <SearchBar onSearch={setSearchQuery} />
-        <FilterPanel onChange={setFilters} />
+        <FilterPanel onChange={setFilters} onLanguageChange={setLanguage} />
       </header>
       <div className="flex-1 flex relative overflow-hidden">
         <aside className="hidden md:block w-80 border-r overflow-y-auto bg-white z-20">
@@ -118,6 +120,7 @@ function HomePage() {
             selectedId={selectedEntryId}
             locationFilter={locationFilter}
             onClearFilter={() => setLocationFilter(null)}
+            language={language}
           />
         </aside>
         <div className="flex-1 relative z-0">
@@ -130,7 +133,7 @@ function HomePage() {
         </div>
         {selectedEntryId && (
           <div className="hidden md:block absolute right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg z-30">
-            <EntryDetail entryId={selectedEntryId} onClose={() => setSelectedEntryId(null)} />
+            <EntryDetail entryId={selectedEntryId} onClose={() => setSelectedEntryId(null)} language={language} />
           </div>
         )}
         <div
@@ -148,7 +151,7 @@ function HomePage() {
           </button>
           <div className="overflow-y-auto" style={{ maxHeight: "calc(70vh - 3rem)" }}>
             {selectedEntryId ? (
-              <EntryDetail entryId={selectedEntryId} onClose={() => setSelectedEntryId(null)} />
+              <EntryDetail entryId={selectedEntryId} onClose={() => setSelectedEntryId(null)} language={language} />
             ) : (
               <ResultList
                 entries={displayEntries}
@@ -156,6 +159,7 @@ function HomePage() {
                 selectedId={selectedEntryId}
                 locationFilter={locationFilter}
                 onClearFilter={() => setLocationFilter(null)}
+                language={language}
               />
             )}
           </div>

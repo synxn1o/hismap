@@ -1,4 +1,5 @@
 import type { JournalEntry } from "@/types";
+import { getSummary, type Language } from "@/lib/language";
 
 interface ResultListProps {
   entries: JournalEntry[];
@@ -6,9 +7,10 @@ interface ResultListProps {
   selectedId: number | null;
   locationFilter?: { lat: number; lng: number; radiusKm: number } | null;
   onClearFilter?: () => void;
+  language?: Language;
 }
 
-export function ResultList({ entries, onSelect, selectedId, locationFilter, onClearFilter }: ResultListProps) {
+export function ResultList({ entries, onSelect, selectedId, locationFilter, onClearFilter, language = 'zh' }: ResultListProps) {
   if (entries.length === 0) {
     return (
       <div className="p-4 text-sm text-gray-400">
@@ -46,9 +48,9 @@ export function ResultList({ entries, onSelect, selectedId, locationFilter, onCl
           <div className="text-xs text-gray-600 line-clamp-2">
             {entry.excerpt_original || entry.original_text?.slice(0, 100)}
           </div>
-          {(entry.summary_chinese || entry.summary_english) && (
+          {getSummary(entry, language) && (
             <div className="text-xs text-gray-500 line-clamp-1 mt-0.5">
-              {entry.summary_chinese || entry.summary_english}
+              {getSummary(entry, language)}
             </div>
           )}
           <div className="flex gap-2 text-xs text-gray-400">
