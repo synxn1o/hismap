@@ -56,16 +56,21 @@ function MapFocusHandler({ focusTarget }: { focusTarget?: FocusTarget | null }) 
 }
 
 export function MapView({ locations, focusTarget, entries, onMarkerClick }: MapViewProps) {
-  // Compute book color for each location
+  // Compute book color for each location from entries data
   const locationColors = useMemo(() => {
     const colorMap = new Map<number, string>();
-    locations.forEach((loc) => {
-      if (loc.book_id && !colorMap.has(loc.id)) {
-        colorMap.set(loc.id, getBookColor(loc.book_id));
-      }
-    });
+    if (entries) {
+      entries.forEach((entry) => {
+        const color = entry.book_id ? getBookColor(entry.book_id) : "#3B82F6";
+        entry.locations.forEach((loc) => {
+          if (!colorMap.has(loc.id)) {
+            colorMap.set(loc.id, color);
+          }
+        });
+      });
+    }
     return colorMap;
-  }, [locations]);
+  }, [entries]);
 
   // Build route data: connect locations across entries within the same book
   const routes = useMemo(() => {
