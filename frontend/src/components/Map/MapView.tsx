@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
-import "react-leaflet-markercluster/dist/styles.min.css";
+import "react-leaflet-markercluster/styles";
 import { LocationMarker } from "./LocationMarker";
 import { RouteArrows } from "./RouteArrows";
 import { getBookColor } from "@/lib/palettes";

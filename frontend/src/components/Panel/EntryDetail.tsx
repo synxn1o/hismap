@@ -8,7 +8,7 @@ interface EntryDetailProps {
 
 export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
   const { data: entry, isLoading } = useEntry(entryId);
-  const { data: story, isLoading: storyLoading } = useStoryContent(entry?.original_text ?? null);
+  const { data: story } = useStoryContent(entry?.original_text ?? null);
 
   if (isLoading) {
     return (
