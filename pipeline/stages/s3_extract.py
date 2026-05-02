@@ -75,18 +75,37 @@ def build_context(
     return "\n\n".join(parts)
 
 
-async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
-    """Stage 3: Extract all data from each story via single LLM call.
+async def extract(
+    segment_result: SegmentResultV2,
+    llm: LLMClient,
+    book_summary: str | None = None,
+    known_entities: list[dict] | None = None,
+) -> dict:
+    """Stage 3: Extract all data from each story via combined LLM call.
 
-    Reads each story's JSON file, calls LLM once per story with web_search tool,
-    merges response back into the JSON, sets extracted=true.
-
-    Returns stats dict: {processed, skipped, failed}.
+    Uses the combined filter+extract prompt. Handles:
+    - Non-content detection (is_content field)
+    - Multi-story segmentation (entries[] array)
+    - Full field extraction (excerpt, summary, entities, credibility)
     """
-    prompt_template = load_prompt("extraction")
+    prompt_template = load_prompt("extraction_combined")
     stats = {"processed": 0, "skipped": 0, "failed": 0}
 
-    for seg_info in segment_result.segments:
+    # Collect known entities from already-processed stories
+    if known_entities is None:
+        known_entities = []
+        for seg_info in segment_result.segments:
+            story_path = Path(seg_info.file_path)
+            if not story_path.exists():
+                continue
+            data = json.loads(story_path.read_text(encoding="utf-8"))
+            s = ExtractedStory(**data)
+            if s.entities:
+                for loc in s.entities.get("locations", []):
+                    if loc.get("name") and loc.get("lat") and loc.get("lng"):
+                        known_entities.append(loc)
+
+    for seg_idx, seg_info in enumerate(segment_result.segments):
         story_path = Path(seg_info.file_path)
         if not story_path.exists():
             stats["failed"] += 1
@@ -107,7 +126,8 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             print(f"    [{seg_info.id}] skipped (non-content)")
             continue
 
-        prompt = prompt_template.format(text=story.original_text)
+        context = build_context(story, segment_result, seg_idx, known_entities, book_summary)
+        prompt = prompt_template.format(context=context, text=story.original_text)
         print(f"    [{seg_info.id}] extracting...", end=" ", flush=True)
 
         try:
@@ -120,7 +140,6 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
                     max_tokens=8192,
                 )
             except Exception:
-                # Fallback: tools not supported by this API, use plain chat
                 raw = await llm.extract_json(
                     prompt=prompt,
                     system="You are a historical text analysis expert. Be concise. Return ONLY valid JSON.",
@@ -130,6 +149,7 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             if not raw or not raw.strip():
                 raise ValueError("LLM returned empty response")
 
+            # Clean markdown fences
             if raw.startswith("```"):
                 lines = raw.split("\n")
                 lines = [l for l in lines if not l.startswith("```")]
@@ -140,30 +160,72 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             except json.JSONDecodeError:
                 # Try to recover malformed/truncated JSON
                 fixed = raw.rstrip()
-                # Remove trailing comma
                 if fixed.endswith(','):
                     fixed = fixed[:-1]
-                # Remove trailing comma before ] or }
                 import re
                 fixed = re.sub(r',(\s*[\]}])', r'\1', fixed)
-                # Close any open strings
                 if fixed.count('"') % 2 != 0:
                     fixed += '"'
-                # Close open arrays and objects
                 open_brackets = fixed.count('[') - fixed.count(']')
                 open_braces = fixed.count('{') - fixed.count('}')
                 fixed += ']' * max(0, open_brackets)
                 fixed += '}' * max(0, open_braces)
                 extracted = json.loads(fixed)
 
-            story.book_metadata = extracted.get("book_metadata")
-            story.story_metadata = extracted.get("story_metadata")
-            story.entities = extracted.get("entities")
-            story.translations = extracted.get("translations")
-            story.credibility = extracted.get("credibility")
-            story.annotations = extracted.get("annotations")
+            entries = extracted.get("entries", [])
+            if not entries:
+                raise ValueError("LLM returned no entries")
+
+            # Use the first content entry (typically only 1 per chunk)
+            entry = None
+            for e in entries:
+                if e.get("is_content", True):
+                    entry = e
+                    break
+
+            if entry is None:
+                # All entries are non-content
+                story.is_content = False
+                story.extracted = True
+                story.error = "non_content"
+                story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+                stats["skipped"] += 1
+                print("non-content")
+                continue
+
+            # Map entry fields to story
+            story_meta = entry.get("story_metadata", {})
+            excerpt = entry.get("excerpt", {})
+            summary = entry.get("summary", {})
+            entities = entry.get("entities", {})
+            credibility = entry.get("credibility", {})
+
+            story.story_metadata = story_meta
+            story.entities = entities
+            story.credibility = credibility
+            story.annotations = entry.get("annotations", [])
+
+            story.excerpt_original = excerpt.get("original")
+            story.excerpt_translation = excerpt.get("translation")
+            story.summary_chinese = summary.get("chinese")
+            story.summary_english = summary.get("english")
+            story.persons = entities.get("persons")
+            story.dates = entities.get("dates")
+
+            # Keep legacy translations field populated for backward compat
+            story.translations = {
+                "modern_chinese": summary.get("chinese"),
+                "english": summary.get("english"),
+            }
+
+            story.is_truncated = entry.get("is_truncated", False)
             story.extracted = True
             story.error = None
+
+            # Update known entities
+            for loc in entities.get("locations", []):
+                if loc.get("name") and loc.get("lat") and loc.get("lng"):
+                    known_entities.append(loc)
 
             stats["processed"] += 1
             print("OK")
