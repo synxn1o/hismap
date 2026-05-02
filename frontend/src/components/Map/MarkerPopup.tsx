@@ -1,13 +1,11 @@
-import { useNavigate } from "react-router-dom";
 import type { MapLocation } from "./MapView";
 
 interface MarkerPopupProps {
   location: MapLocation;
+  onFilterClick?: () => void;
 }
 
-export function MarkerPopup({ location }: MarkerPopupProps) {
-  const navigate = useNavigate();
-
+export function MarkerPopup({ location, onFilterClick }: MarkerPopupProps) {
   return (
     <div className="min-w-[200px]">
       <h3 className="font-bold text-base mb-1">{location.name}</h3>
@@ -22,10 +20,10 @@ export function MarkerPopup({ location }: MarkerPopupProps) {
         {location.ancient_region && <span>{location.ancient_region}</span>}
       </div>
       <button
-        onClick={() => navigate(`/locations/${location.id}`)}
+        onClick={onFilterClick}
         className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
       >
-        查看详情
+        筛选游记
       </button>
     </div>
   );

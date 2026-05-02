@@ -121,9 +121,19 @@ async def output_to_db(
         for i, loc_data in enumerate(entities.get("locations", [])):
             name = loc_data.get("name", "")
             if name in loc_map:
+                # Find importance from annotations
+                importance = 0
+                for ann in story.annotations or []:
+                    if ann.get("marker_title", "").lower().startswith(name.lower()):
+                        importance = ann.get("importance", 0)
+                        break
+
                 await session.execute(
                     entry_locations.insert().values(
-                        entry_id=je.id, location_id=loc_map[name].id, location_order=i
+                        entry_id=je.id,
+                        location_id=loc_map[name].id,
+                        location_order=i,
+                        importance=importance,
                     )
                 )
 

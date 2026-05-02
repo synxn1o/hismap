@@ -1,5 +1,8 @@
+# run with conda environment "hismap"
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 
@@ -13,6 +16,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Serve pipeline output as static files
+    app.mount("/static/output", StaticFiles(directory="../pipeline/output"), name="pipeline-output")
 
     @app.get("/api/health")
     async def health():

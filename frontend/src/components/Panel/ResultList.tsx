@@ -4,15 +4,36 @@ interface ResultListProps {
   entries: JournalEntry[];
   onSelect: (id: number) => void;
   selectedId: number | null;
+  locationFilter?: { lat: number; lng: number; radiusKm: number } | null;
+  onClearFilter?: () => void;
 }
 
-export function ResultList({ entries, onSelect, selectedId }: ResultListProps) {
+export function ResultList({ entries, onSelect, selectedId, locationFilter, onClearFilter }: ResultListProps) {
   if (entries.length === 0) {
-    return <div className="p-4 text-sm text-gray-400">暂无结果</div>;
+    return (
+      <div className="p-4 text-sm text-gray-400">
+        {locationFilter ? "该位置附近暂无游记" : "暂无结果"}
+      </div>
+    );
   }
 
   return (
     <div className="overflow-y-auto">
+      {locationFilter && (
+        <div className="p-2 bg-blue-50 border-b flex items-center justify-between">
+          <span className="text-xs text-blue-700">
+            显示 {entries.length} 条附近游记
+          </span>
+          {onClearFilter && (
+            <button
+              onClick={onClearFilter}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              清除筛选
+            </button>
+          )}
+        </div>
+      )}
       {entries.map((entry) => (
         <button
           key={entry.id}
