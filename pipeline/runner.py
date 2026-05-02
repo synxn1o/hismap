@@ -69,7 +69,7 @@ async def run_pipeline(
                         known_entities.append(loc)
 
     book_summary = getattr(ingest_result, 'metadata', {}).get("book_summary") if hasattr(ingest_result, 'metadata') and ingest_result.metadata else None
-    extract_stats = await extract(segment_result, llm, book_summary=book_summary, known_entities=known_entities)
+    extract_stats = await extract(segment_result, llm, book_summary=book_summary, known_entities=known_entities, config=config)
     results["extract"] = extract_stats
     print(f"  → processed: {extract_stats['processed']}, "
           f"skipped: {extract_stats['skipped']}, failed: {extract_stats['failed']}")

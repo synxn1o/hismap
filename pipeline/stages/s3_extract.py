@@ -8,7 +8,7 @@ from pipeline.models import ExtractedStory, SegmentResultV2
 
 PROMPTS_DIR = Path(__file__).parent.parent / "config" / "prompts"
 
-EXTRACTION_TOOLS = [
+DEFAULT_EXTRACTION_TOOLS = [
     {
         "type": "web_search",
         "max_keyword": 6,
@@ -16,6 +16,13 @@ EXTRACTION_TOOLS = [
         "limit": 6,
     }
 ]
+
+
+def get_extraction_tools(config: dict | None = None) -> list[dict]:
+    """Load extraction tools from config, falling back to defaults."""
+    if config and config.get("extratools"):
+        return config["extratools"]
+    return DEFAULT_EXTRACTION_TOOLS
 
 
 def load_prompt(name: str) -> str:
@@ -80,6 +87,7 @@ async def extract(
     llm: LLMClient,
     book_summary: str | None = None,
     known_entities: list[dict] | None = None,
+    config: dict | None = None,
 ) -> dict:
     """Stage 3: Extract all data from each story via combined LLM call.
 
@@ -135,7 +143,7 @@ async def extract(
                 raw = await llm.chat_with_tools(
                     prompt=prompt,
                     system="You are a historical text analysis expert.",
-                    tools=EXTRACTION_TOOLS,
+                    tools=get_extraction_tools(config),
                     response_format={"type": "json_object"},
                     max_tokens=8192,
                 )
