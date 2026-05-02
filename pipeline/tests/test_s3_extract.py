@@ -216,3 +216,38 @@ async def test_extract_skips_non_content_stories(tmp_path, mock_llm):
     assert saved["extracted"] is True
     assert saved["error"] == "non_content"
     assert result["skipped"] == 1
+
+
+def test_combined_prompt_template_loads():
+    """The combined extraction prompt template should load and format correctly."""
+    from pathlib import Path
+
+    prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "extraction_combined.txt"
+    assert prompt_path.exists(), f"Prompt not found at {prompt_path}"
+
+    template = prompt_path.read_text()
+    assert "{context}" in template
+    assert "{text}" in template
+
+    # Verify it formats without error
+    formatted = template.format(context="Book: Test Book\nAuthor: Test", text="Some story text")
+    assert "Test Book" in formatted
+    assert "Some story text" in formatted
+    assert "{context}" not in formatted
+    assert "{text}" not in formatted
+
+
+def test_combined_prompt_contains_required_sections():
+    """The combined prompt should contain filter, segment, and extract instructions."""
+    from pathlib import Path
+
+    prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "extraction_combined.txt"
+    template = prompt_path.read_text()
+
+    # Check for key instruction sections
+    assert "is_content" in template
+    assert "start_anchor" in template
+    assert "end_anchor" in template
+    assert "excerpt" in template
+    assert "summary" in template
+    assert "entries" in template
