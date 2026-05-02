@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { MapView } from "./components/Map/MapView";
+import type { MapLocation } from "./components/Map/MapView";
 import { SearchBar } from "./components/Search/SearchBar";
 import { FilterPanel, type FilterState } from "./components/Filter/FilterPanel";
 import { ResultList } from "./components/Panel/ResultList";
@@ -11,6 +12,22 @@ import { useEntries, useLocations, useSearch } from "./api/hooks";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
 const queryClient = new QueryClient();
+
+function haversineDistance(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function HomePage() {
   const [filters, setFilters] = useState<FilterState>({ dynasty: "", locationType: "", era: "" });
@@ -26,11 +43,61 @@ function HomePage() {
   const { data: searchResults } = useSearch(searchQuery);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<{
+    lat: number;
+    lng: number;
+    radiusKm: number;
+  } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{
+    locations: Array<{ latitude: number; longitude: number }>;
+  } | null>(null);
 
-  const displayEntries = searchQuery && searchResults ? searchResults : entries;
+  const displayEntriesRaw = searchQuery && searchResults ? searchResults : entries;
   const displayLocations = searchQuery && searchResults
     ? searchResults.flatMap((e) => e.locations).filter((l, i, arr) => arr.findIndex((x) => x.id === l.id) === i)
     : locations;
+
+  // Apply location filter
+  const displayEntries = useMemo(() => {
+    if (!locationFilter) return displayEntriesRaw;
+    return displayEntriesRaw.filter((entry) =>
+      entry.locations.some((loc) => {
+        const dist = haversineDistance(
+          locationFilter.lat,
+          locationFilter.lng,
+          loc.latitude,
+          loc.longitude
+        );
+        return dist <= locationFilter.radiusKm;
+      })
+    );
+  }, [displayEntriesRaw, locationFilter]);
+
+  // Handle entry selection — focus map on entry locations
+  const handleSelectEntry = useCallback(
+    (id: number) => {
+      setSelectedEntryId(id);
+      const entry = displayEntriesRaw.find((e) => e.id === id);
+      if (entry && entry.locations.length > 0) {
+        setFocusTarget({
+          locations: entry.locations.map((loc) => ({
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+          })),
+        });
+      }
+    },
+    [displayEntriesRaw]
+  );
+
+  // Handle marker click — filter entries by location
+  const handleMarkerClick = useCallback((location: MapLocation) => {
+    setLocationFilter({
+      lat: location.latitude,
+      lng: location.longitude,
+      radiusKm: 10,
+    });
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -41,11 +108,24 @@ function HomePage() {
       </header>
       <div className="flex-1 flex relative overflow-hidden">
         <aside className="hidden md:block w-80 border-r overflow-y-auto bg-white z-20">
-          <div className="p-3 border-b text-sm text-gray-500">{displayEntries.length} 条游记</div>
-          <ResultList entries={displayEntries} onSelect={setSelectedEntryId} selectedId={selectedEntryId} />
+          <div className="p-3 border-b text-sm text-gray-500">
+            {displayEntries.length} 条游记
+          </div>
+          <ResultList
+            entries={displayEntries}
+            onSelect={handleSelectEntry}
+            selectedId={selectedEntryId}
+            locationFilter={locationFilter}
+            onClearFilter={() => setLocationFilter(null)}
+          />
         </aside>
         <div className="flex-1 relative z-0">
-          <MapView locations={displayLocations} />
+          <MapView
+            locations={displayLocations}
+            focusTarget={focusTarget}
+            entries={displayEntriesRaw}
+            onMarkerClick={handleMarkerClick}
+          />
         </div>
         {selectedEntryId && (
           <div className="hidden md:block absolute right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg z-30">
@@ -71,8 +151,10 @@ function HomePage() {
             ) : (
               <ResultList
                 entries={displayEntries}
-                onSelect={(id) => { setSelectedEntryId(id); setDrawerOpen(true); }}
+                onSelect={(id) => { handleSelectEntry(id); setDrawerOpen(true); }}
                 selectedId={selectedEntryId}
+                locationFilter={locationFilter}
+                onClearFilter={() => setLocationFilter(null)}
               />
             )}
           </div>
