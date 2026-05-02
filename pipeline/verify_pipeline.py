@@ -139,6 +139,33 @@ async def main():
                     if loc.get("name") and loc.get("lat") and loc.get("lng"):
                         known_entities.append(loc)
 
+    # Count current state
+    total = len(segment_result.segments)
+    already_done = 0
+    to_extract = 0
+    non_content = 0
+    for seg_info in segment_result.segments:
+        story_path = Path(seg_info.file_path)
+        if not story_path.exists():
+            continue
+        data = json.loads(story_path.read_text(encoding="utf-8"))
+        if data.get("extracted"):
+            already_done += 1
+        elif not data.get("is_content", True):
+            non_content += 1
+        else:
+            to_extract += 1
+
+    print(f"\n  Total segments: {total}")
+    print(f"  Already extracted: {already_done}")
+    print(f"  Non-content: {non_content}")
+    print(f"  To extract: {to_extract}")
+
+    if to_extract == 0:
+        print("\n  All segments already extracted — nothing to do.")
+    else:
+        print(f"\n  Showing first 2 of {to_extract} pending segments in detail...")
+
     shown = 0
     for seg_idx, seg_info in enumerate(segment_result.segments):
         story_path = Path(seg_info.file_path)
@@ -239,7 +266,7 @@ async def main():
     print("  Running full S3 extract on all segments...")
     print(DIVIDER)
 
-    extract_stats = await extract(segment_result, llm, book_summary=book_summary, known_entities=known_entities)
+    extract_stats = await extract(segment_result, llm, book_summary=book_summary, known_entities=known_entities, config=config)
 
     print(f"\n  Results: processed={extract_stats['processed']}, skipped={extract_stats['skipped']}, failed={extract_stats['failed']}")
 
@@ -248,16 +275,22 @@ async def main():
     # ──────────────────────────────────────────────────────────────
     section("EXTRACTION SUMMARY — All entries")
 
+    extracted_count = 0
+    failed_count = 0
     for seg_info in segment_result.segments:
         story_path = Path(seg_info.file_path)
         if not story_path.exists():
+            failed_count += 1
             continue
         data = json.loads(story_path.read_text())
         if not data.get("is_content"):
             continue
         if not data.get("extracted"):
+            failed_count += 1
+            print(f"\n  [{seg_info.id}] {data.get('title')} — FAILED: {str(data.get('error'))[:100]}")
             continue
 
+        extracted_count += 1
         print(f"\n  [{seg_info.id}] {data.get('title')}")
         print(f"    excerpt:    {str(data.get('excerpt_original'))[:120]}")
         print(f"    summary_zh: {str(data.get('summary_chinese'))[:120]}")
@@ -266,6 +299,8 @@ async def main():
         locs = (data.get("entities") or {}).get("locations", [])
         if locs:
             print(f"    locations:  {[l['name'] for l in locs[:5]]}")
+
+    print(f"\n  --- Extracted: {extracted_count}, Failed: {failed_count} ---")
 
     print(f"\n{DIVIDER}")
     print("  Verification complete.")
