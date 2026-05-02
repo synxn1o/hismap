@@ -8,6 +8,7 @@ import { FilterPanel, type FilterState } from "./components/Filter/FilterPanel";
 import { ResultList } from "./components/Panel/ResultList";
 import { EntryDetail } from "./components/Panel/EntryDetail";
 import { LocationPage } from "./pages/LocationPage";
+import EntryPage from "./pages/EntryPage";
 import { useEntries, useLocations, useSearch } from "./api/hooks";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
@@ -171,6 +172,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/locations/:id" element={<LocationPage />} />
+          <Route path="/entries/:id" element={<EntryPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
