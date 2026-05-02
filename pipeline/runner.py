@@ -40,6 +40,14 @@ async def run_pipeline(
     print(f"  → {ingest_result.page_count} pages, {len(ingest_result.raw_text)} chars, "
           f"method: {ingest_result.ocr_method}, lang: {ingest_result.detected_language}")
 
+    # Book summary extraction (from preface)
+    from pipeline.stages.book_summary import identify_preface, extract_book_summary
+    preface_text, _ = identify_preface(ingest_result.raw_text)
+    if preface_text and len(preface_text) > 100:
+        print("[S1] Extracting book summary from preface...")
+        book_summary = await extract_book_summary(preface_text, llm)
+        ingest_result.metadata["book_summary"] = book_summary
+
     # Stage 2: Segment
     print("[Stage 2/4] Segmenting text...")
     segment_result = await segment(ingest_result, output_dir=output_dir, llm=llm)
