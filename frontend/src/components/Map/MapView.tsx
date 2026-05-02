@@ -67,21 +67,52 @@ export function MapView({ locations, focusTarget, entries, onMarkerClick }: MapV
     return colorMap;
   }, [locations]);
 
-  // Build route data from entries
+  // Build route data: connect locations across entries within the same book
   const routes = useMemo(() => {
-    if (!entries) return [];
-    return entries
-      .filter((e) => e.locations.length >= 2)
-      .map((entry) => ({
-        entryId: entry.id,
-        locations: entry.locations.map((loc, i) => ({
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          order: i,
-        })),
-        color: entry.book_id ? getBookColor(entry.book_id) : "#3B82F6",
-      }))
-      .filter((r) => r.locations.every((l) => l.latitude !== 0));
+    if (!entries || entries.length === 0) return [];
+
+    // Group entries by book_id
+    const byBook = new Map<number, typeof entries>();
+    entries.forEach((entry) => {
+      const bookId = entry.book_id ?? 0;
+      if (!byBook.has(bookId)) byBook.set(bookId, []);
+      byBook.get(bookId)!.push(entry);
+    });
+
+    const result: Array<{
+      entryId: number;
+      locations: Array<{ latitude: number; longitude: number; order: number }>;
+      color: string;
+    }> = [];
+
+    byBook.forEach((bookEntries, bookId) => {
+      // Sort by entry id (proxy for chronological order)
+      const sorted = [...bookEntries].sort((a, b) => a.id - b.id);
+
+      // Collect all locations in sequence
+      const routeLocations: Array<{ latitude: number; longitude: number; order: number }> = [];
+      sorted.forEach((entry) => {
+        entry.locations.forEach((loc) => {
+          if (loc.latitude !== 0 && loc.longitude !== 0) {
+            routeLocations.push({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              order: routeLocations.length,
+            });
+          }
+        });
+      });
+
+      if (routeLocations.length >= 2) {
+        result.push({
+          entryId: bookId,
+          locations: routeLocations,
+          color: bookId ? getBookColor(bookId) : "#3B82F6",
+        });
+      }
+    });
+
+    return result;
   }, [entries]);
 
   return (
