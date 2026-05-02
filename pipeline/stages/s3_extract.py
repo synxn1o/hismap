@@ -8,14 +8,7 @@ from pipeline.models import ExtractedStory, SegmentResultV2
 
 PROMPTS_DIR = Path(__file__).parent.parent / "config" / "prompts"
 
-DEFAULT_EXTRACTION_TOOLS = [
-    {
-        "type": "web_search",
-        "max_keyword": 6,
-        "force_search": False,
-        "limit": 6,
-    }
-]
+DEFAULT_EXTRACTION_TOOLS = []
 
 
 def get_extraction_tools(config: dict | None = None) -> list[dict]:
@@ -134,116 +127,168 @@ async def extract(
             print(f"    [{seg_info.id}] skipped (non-content)")
             continue
 
-        context = build_context(story, segment_result, seg_idx, known_entities, book_summary)
-        prompt = prompt_template.format(context=context, text=story.original_text)
-        print(f"    [{seg_info.id}] extracting...", end=" ", flush=True)
+        ok = await _extract_single(
+            story, story_path, seg_info, seg_idx,
+            segment_result, llm, prompt_template,
+            known_entities, book_summary, config,
+        )
+        if ok:
+            stats["processed"] += 1
+        else:
+            stats["failed"] += 1
 
-        try:
-            try:
-                raw = await llm.chat_with_tools(
-                    prompt=prompt,
-                    system="You are a historical text analysis expert.",
-                    tools=get_extraction_tools(config),
-                    response_format={"type": "json_object"},
-                    max_tokens=8192,
-                )
-            except Exception:
-                raw = await llm.extract_json(
-                    prompt=prompt,
-                    system="You are a historical text analysis expert. Be concise. Return ONLY valid JSON.",
-                    max_tokens=8192,
-                )
-
-            if not raw or not raw.strip():
-                raise ValueError("LLM returned empty response")
-
-            # Clean markdown fences
-            if raw.startswith("```"):
-                lines = raw.split("\n")
-                lines = [l for l in lines if not l.startswith("```")]
-                raw = "\n".join(lines)
-
-            try:
-                extracted = json.loads(raw)
-            except json.JSONDecodeError:
-                # Try to recover malformed/truncated JSON
-                fixed = raw.rstrip()
-                if fixed.endswith(','):
-                    fixed = fixed[:-1]
-                import re
-                fixed = re.sub(r',(\s*[\]}])', r'\1', fixed)
-                if fixed.count('"') % 2 != 0:
-                    fixed += '"'
-                open_brackets = fixed.count('[') - fixed.count(']')
-                open_braces = fixed.count('{') - fixed.count('}')
-                fixed += ']' * max(0, open_brackets)
-                fixed += '}' * max(0, open_braces)
-                extracted = json.loads(fixed)
-
-            entries = extracted.get("entries", [])
-            if not entries:
-                raise ValueError("LLM returned no entries")
-
-            # Use the first content entry (typically only 1 per chunk)
-            entry = None
-            for e in entries:
-                if e.get("is_content", True):
-                    entry = e
-                    break
-
-            if entry is None:
-                # All entries are non-content
-                story.is_content = False
-                story.extracted = True
-                story.error = "non_content"
-                story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
-                stats["skipped"] += 1
-                print("non-content")
+    # Retry pass: re-attempt failed entries
+    if stats["failed"] > 0:
+        print(f"\n  Retrying {stats['failed']} failed entries...")
+        retry_failed = 0
+        for seg_idx, seg_info in enumerate(segment_result.segments):
+            story_path = Path(seg_info.file_path)
+            if not story_path.exists():
                 continue
 
-            # Map entry fields to story
-            story_meta = entry.get("story_metadata", {})
-            excerpt = entry.get("excerpt", {})
-            summary = entry.get("summary", {})
-            entities = entry.get("entities", {})
-            credibility = entry.get("credibility", {})
+            story_data = json.loads(story_path.read_text(encoding="utf-8"))
+            story = ExtractedStory(**story_data)
 
-            story.story_metadata = story_meta
-            story.entities = entities
-            story.credibility = credibility
-            story.annotations = entry.get("annotations", [])
+            if story.extracted or not story.is_content:
+                continue
 
-            story.excerpt_original = excerpt.get("original")
-            story.excerpt_translation = excerpt.get("translation")
-            story.summary_chinese = summary.get("chinese")
-            story.summary_english = summary.get("english")
-            story.persons = entities.get("persons")
-            story.dates = entities.get("dates")
+            print(f"    [{seg_info.id}] retrying...", end=" ", flush=True)
+            ok = await _extract_single(
+                story, story_path, seg_info, seg_idx,
+                segment_result, llm, prompt_template,
+                known_entities, book_summary, config,
+            )
+            if ok:
+                stats["processed"] += 1
+                stats["failed"] -= 1
+            else:
+                retry_failed += 1
 
-            # Keep legacy translations field populated for backward compat
-            story.translations = {
-                "modern_chinese": summary.get("chinese"),
-                "english": summary.get("english"),
-            }
-
-            story.is_truncated = entry.get("is_truncated", False)
-            story.extracted = True
-            story.error = None
-
-            # Update known entities
-            for loc in entities.get("locations", []):
-                if loc.get("name") and loc.get("lat") and loc.get("lng"):
-                    known_entities.append(loc)
-
-            stats["processed"] += 1
-            print("OK")
-
-        except Exception as e:
-            story.extracted = False
-            story.error = str(e)[:500]
-            stats["failed"] += 1
-            print(f"FAIL: {story.error[:80]}")
-
-        story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+        if retry_failed:
+            print(f"  {retry_failed} entries still failed after retry")
 
     return stats
+
+
+async def _extract_single(
+    story: ExtractedStory,
+    story_path: Path,
+    seg_info,
+    seg_idx: int,
+    segment_result: SegmentResultV2,
+    llm: LLMClient,
+    prompt_template: str,
+    known_entities: list[dict],
+    book_summary: str | None,
+    config: dict | None,
+) -> bool:
+    """Extract data for a single story. Returns True on success, False on failure."""
+    context = build_context(story, segment_result, seg_idx, known_entities, book_summary)
+    prompt = prompt_template.format(context=context, text=story.original_text)
+
+    try:
+        try:
+            raw = await llm.chat_with_tools(
+                prompt=prompt,
+                system="You are a historical text analysis expert.",
+                tools=get_extraction_tools(config),
+                response_format={"type": "json_object"},
+                max_tokens=(config or {}).get("llm", {}).get("max_tokens", 8192),
+            )
+        except Exception:
+            raw = await llm.extract_json(
+                prompt=prompt,
+                system="You are a historical text analysis expert. Be concise. Return ONLY valid JSON.",
+                max_tokens=8192,
+            )
+
+        if not raw or not raw.strip():
+            raise ValueError("LLM returned empty response")
+
+        # Clean markdown fences
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            lines = [l for l in lines if not l.startswith("```")]
+            raw = "\n".join(lines)
+
+        try:
+            extracted = json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to recover malformed/truncated JSON
+            fixed = raw.rstrip()
+            if fixed.endswith(','):
+                fixed = fixed[:-1]
+            import re
+            fixed = re.sub(r',(\s*[\]}])', r'\1', fixed)
+            if fixed.count('"') % 2 != 0:
+                fixed += '"'
+            open_brackets = fixed.count('[') - fixed.count(']')
+            open_braces = fixed.count('{') - fixed.count('}')
+            fixed += ']' * max(0, open_brackets)
+            fixed += '}' * max(0, open_braces)
+            extracted = json.loads(fixed)
+
+        entries = extracted.get("entries", [])
+        if not entries:
+            raise ValueError("LLM returned no entries")
+
+        # Use the first content entry (typically only 1 per chunk)
+        entry = None
+        for e in entries:
+            if e.get("is_content", True):
+                entry = e
+                break
+
+        if entry is None:
+            # All entries are non-content
+            story.is_content = False
+            story.extracted = True
+            story.error = "non_content"
+            story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+            print("non-content")
+            return True  # not a failure, just non-content
+
+        # Map entry fields to story
+        story_meta = entry.get("story_metadata", {})
+        excerpt = entry.get("excerpt", {})
+        summary = entry.get("summary", {})
+        entities = entry.get("entities", {})
+        credibility = entry.get("credibility", {})
+
+        story.story_metadata = story_meta
+        story.entities = entities
+        story.credibility = credibility
+        story.annotations = entry.get("annotations", [])
+
+        story.excerpt_original = excerpt.get("original")
+        story.excerpt_translation = excerpt.get("translation")
+        story.summary_chinese = summary.get("chinese")
+        story.summary_english = summary.get("english")
+        story.persons = entities.get("persons")
+        story.dates = entities.get("dates")
+
+        # Keep legacy translations field populated for backward compat
+        story.translations = {
+            "modern_chinese": summary.get("chinese"),
+            "english": summary.get("english"),
+        }
+
+        story.is_truncated = entry.get("is_truncated", False)
+        story.extracted = True
+        story.error = None
+
+        # Update known entities
+        for loc in entities.get("locations", []):
+            if loc.get("name") and loc.get("lat") and loc.get("lng"):
+                known_entities.append(loc)
+
+        print("OK")
+        story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+        return True
+
+    except Exception as e:
+        story.extracted = False
+        story.error = str(e)[:500]
+        print(f"FAIL: {story.error[:80]}")
+        story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+        return False
