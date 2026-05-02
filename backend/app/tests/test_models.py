@@ -8,6 +8,24 @@ from app.models.journal_entry import JournalEntry
 from app.models.associations import entry_locations, entry_authors
 
 
+def test_journal_entry_has_new_fields():
+    """JournalEntry model should have excerpt, summary, persons, dates columns."""
+    columns = {c.name for c in JournalEntry.__table__.columns}
+    assert "excerpt_original" in columns
+    assert "excerpt_translation" in columns
+    assert "summary_chinese" in columns
+    assert "summary_english" in columns
+    assert "persons" in columns
+    assert "dates" in columns
+
+
+def test_journal_entry_removes_old_translation_fields():
+    """JournalEntry model should NOT have modern_translation or english_translation."""
+    columns = {c.name for c in JournalEntry.__table__.columns}
+    assert "modern_translation" not in columns
+    assert "english_translation" not in columns
+
+
 @pytest.mark.asyncio
 async def test_create_book(db_session):
     book = Book(
@@ -82,8 +100,8 @@ async def test_create_journal_entry(db_session):
         book_id=book.id,
         title="泉州见闻",
         original_text="在这座城市里，你可以找到所有你能想到的香料和宝石",
-        modern_translation="在这座城市中，能找到各种香料和宝石",
-        english_translation="In this city, you can find all the spices and gems...",
+        excerpt_original="在这座城市里，你可以找到所有你能想到的香料和宝石",
+        excerpt_translation="In this city, you can find all the spices and gems...",
         chapter_reference="第2卷第38章",
         keywords=["香料", "宝石", "港口", "贸易"],
         era_context="地理大发现",
