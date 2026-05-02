@@ -59,6 +59,36 @@ def segment_by_headings(text: str) -> list[dict]:
     return segments
 
 
+def segment_by_chapters(text: str, llm=None) -> list[dict]:
+    """Segment text using chapter_detector.py chain-of-responsibility pattern.
+
+    Falls back to segment_by_headings if chapter_detector finds < 2 chapters.
+    """
+    try:
+        from pipeline.chapter_detector import build_default_chain
+
+        chain = build_default_chain(llm_client=llm)
+        chapters = chain.detect(text, strategy="auto")
+
+        if len(chapters) >= 2:
+            stories = []
+            for ch in chapters:
+                story = {
+                    "title": ch.title,
+                    "text": ch.text,
+                    "chapter_title": ch.title,
+                    "needs_subdivision": len(ch.text) > 5000,
+                }
+                stories.append(story)
+            return stories
+    except Exception:
+        pass
+
+    # Fallback to regex headings
+    headings = segment_by_headings(text)
+    return [{"title": h["heading"], "text": h["text"], "chapter_title": h["heading"]} for h in headings]
+
+
 def merge_ocr_stories(ocr_pages: list[dict]) -> list[dict]:
     """Merge stories across OCR pages using continues_from_prev/continues_to_next flags."""
     merged: list[dict] = []
@@ -112,7 +142,7 @@ async def segment(
     """Stage 2: Segment text into stories, assign IDs, save JSON files.
 
     Three paths:
-    A. Text with headings -> regex split
+    A. Text with headings -> chapter-based segmentation
     B. Text without headings -> LLM fallback
     C. OCR results -> merge by continuation flags
     """
@@ -128,18 +158,18 @@ async def segment(
         raw_stories = merge_ocr_stories(ingest_result.ocr_pages)
         source_type = "ocr"
     else:
-        # Path A: Try regex heading detection
-        headings = segment_by_headings(ingest_result.raw_text)
+        # Path A: Try chapter-based segmentation
+        chapters = segment_by_chapters(ingest_result.raw_text, llm=llm)
 
-        if len(headings) >= 2 and headings[0]["heading"] is not None:
-            raw_stories = [{"title": h["heading"], "text": h["text"]} for h in headings]
+        if len(chapters) >= 2 and chapters[0].get("title") is not None:
+            raw_stories = chapters
             source_type = "text"
         elif llm is not None:
             # Path B: LLM fallback
             raw_stories = await _segment_by_llm(ingest_result.raw_text, llm)
             source_type = "text"
         else:
-            raw_stories = [{"title": None, "text": h["text"]} for h in headings]
+            raw_stories = [{"title": None, "text": h["text"]} for h in segment_by_headings(ingest_result.raw_text)]
             source_type = "text"
 
     segments = []
@@ -161,6 +191,8 @@ async def segment(
             source_type=source_type,
             created_at=now,
             extracted=False,
+            chapter_title=story.get("chapter_title"),
+            needs_subdivision=story.get("needs_subdivision", False),
         )
 
         file_path = save_segment_json(extracted, output_dir)

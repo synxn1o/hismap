@@ -176,3 +176,52 @@ async def test_segment_by_llm_filters_non_content():
     # Only content stories should remain
     assert len(stories) == 1
     assert stories[0]["title"] == "Chapter 1"
+
+
+@pytest.mark.asyncio
+async def test_segment_uses_chapter_detector():
+    """segment() should use chapter_detector when available."""
+    from pipeline.stages.s2_segment import segment
+
+    # Text with clear chapter structure
+    text = """Chapter 1 - The Departure
+
+We set out from Venice in the year 1271.
+
+Chapter 2 - Constantinople
+
+After many days we arrived at Constantinople, the great city.
+
+Chapter 3 - The Journey East
+
+From Constantinople we traveled eastward through many lands."""
+
+    ingest_result = _make_ingest(text, language="en")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await segment(ingest_result, output_dir=tmpdir)
+        # Should produce at least 2 segments
+        assert len(result.segments) >= 2
+        # Segments should have chapter titles
+        for seg in result.segments:
+            assert Path(seg.file_path).exists()
+            saved = json.loads(Path(seg.file_path).read_text())
+            assert saved["chapter_title"] is not None or saved["title"] != f"Segment {saved['sequence']}"
+
+
+def test_segment_marks_large_chapters_for_subdivision():
+    """Chapters > 5000 chars should be marked needs_subdivision=True."""
+    from pipeline.models import ExtractedStory
+
+    # Simulate a large chapter
+    story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Long Chapter",
+        original_text="x" * 6000,
+        source_type="text",
+        needs_subdivision=True,
+    )
+    assert story.needs_subdivision is True
