@@ -19,7 +19,7 @@ class JournalEntry(BaseModel):
     keyword_annotations = Column(JSON, nullable=True)
     persons = Column(JSON, nullable=True)
     dates = Column(JSON, nullable=True)
-    era_context = Column(String(200), nullable=True)
+    era_context = Column(Text, nullable=True)
     political_context = Column(Text, nullable=True)
     religious_context = Column(Text, nullable=True)
     social_environment = Column(Text, nullable=True)

@@ -2,7 +2,7 @@ You are a historical text analysis expert analyzing a travel journal. Perform th
 
 1. FILTER: Identify content vs non-content sections
 2. SEGMENT: Split multi-story chunks into separate narrative units
-3. EXTRACT: Extract all fields for each content entry
+3. EXTRACT: Extract all fields for each content entry. All the date MUST use "yyyy-mm-dd" format enclosed in double quotes without explaining text
 
 CONTEXT:
 {context}
@@ -33,7 +33,7 @@ Return a single JSON object with an "entries" array:
       "story_metadata": {{
         "title": "story/chapter title",
         "chapter_reference": "chapter reference if any",
-        "visit_date_approximate": "approximate date"
+        "visit_date_approximate": "yyyy[-mm-dd] - yyyy[-mm-dd]" #approximate year of story
       }},
       "excerpt": {{
         "original": "2-3 sentence excerpt in source language capturing the essence",
@@ -56,8 +56,8 @@ Return a single JSON object with an "entries" array:
           }}
         ],
         "persons": ["person names mentioned"],
-        "dates": ["dates or time references"],
-        "keywords": ["5-10 key topics/themes"]
+        "dates": ["yyyy-mm-dd"], #dates or time explicitly refered in context
+        "keywords": ["3-5 keywords describing era, regime, and cultural background"]
       }},
       "credibility": {{
         "era_context": "historical era description",

@@ -127,8 +127,10 @@ def make_segment_id(book_slug: str, language: str, sequence: int) -> str:
 
 
 def save_segment_json(story: ExtractedStory, output_dir: str) -> str:
-    """Save story as JSON file. Returns file path."""
+    """Save story as JSON file. Returns file path. Skips if file already exists."""
     out_path = Path(output_dir) / f"{story.id}.json"
+    if out_path.exists():
+        return str(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
     return str(out_path)

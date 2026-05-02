@@ -1,9 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
-import { useEntry } from '../api/hooks';
+import { useEntry, useStoryContent } from '../api/hooks';
 
 export default function EntryPage() {
   const { id } = useParams<{ id: string }>();
   const { data: entry, isLoading, error } = useEntry(Number(id));
+  const { data: story } = useStoryContent(entry?.original_text ?? null);
 
   if (isLoading) {
     return (
@@ -79,7 +80,7 @@ export default function EntryPage() {
         <div className="bg-white rounded-lg p-6 shadow-sm mb-8">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Full Original Text</h3>
           <div className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-            {entry.original_text}
+            {story?.original_text ?? entry.original_text}
           </div>
         </div>
 

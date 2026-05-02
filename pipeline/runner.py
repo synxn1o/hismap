@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from pipeline.core.llm_client import LLMClient
-from pipeline.models import OutputResult
-from pipeline.stages.s1_ingest import ingest
+from pipeline.models import IngestResult, OutputResult
+from pipeline.stages.s1_ingest import ingest, make_book_slug
 from pipeline.stages.s2_segment import segment
 from pipeline.stages.s3_extract import extract
 from pipeline.stages.s4_output import output_to_db
@@ -33,20 +34,40 @@ async def run_pipeline(
     llm = LLMClient(config)
     results = {}
 
-    # Stage 1: Ingest
-    print("[Stage 1/4] Ingesting file...")
-    ingest_result = await ingest(file_path, config)
-    results["ingest"] = ingest_result
-    print(f"  → {ingest_result.page_count} pages, {len(ingest_result.raw_text)} chars, "
-          f"method: {ingest_result.ocr_method}, lang: {ingest_result.detected_language}")
+    # Resolve output_dir early so we can check for cached ingest
+    book_slug = make_book_slug(file_path)
+    if output_dir is None:
+        output_dir = str(Path(__file__).parent / "output" / book_slug)
+    out_path = Path(output_dir)
+    ingest_cache = out_path / "_ingest.json"
 
-    # Book summary extraction (from preface)
-    from pipeline.stages.book_summary import identify_preface, extract_book_summary
-    preface_text, _ = identify_preface(ingest_result.raw_text)
-    if preface_text and len(preface_text) > 100:
-        print("[S1] Extracting book summary from preface...")
-        book_summary = await extract_book_summary(preface_text, llm)
-        ingest_result.metadata["book_summary"] = book_summary
+    # Stage 1: Ingest (skip if cached)
+    if ingest_cache.exists():
+        print("[Stage 1/4] Loading cached ingest...")
+        data = json.loads(ingest_cache.read_text(encoding="utf-8"))
+        ingest_result = IngestResult(**data)
+        print(f"  → {ingest_result.page_count} pages, {len(ingest_result.raw_text)} chars (cached)")
+    else:
+        print("[Stage 1/4] Ingesting file...")
+        ingest_result = await ingest(file_path, config)
+
+        # Book summary extraction (from preface)
+        from pipeline.stages.book_summary import identify_preface, extract_book_summary
+        preface_text, _ = identify_preface(ingest_result.raw_text)
+        if preface_text and len(preface_text) > 100:
+            print("[S1] Extracting book summary from preface...")
+            book_summary = await extract_book_summary(preface_text, llm)
+            ingest_result.metadata["book_summary"] = book_summary
+
+        # Cache ingest result
+        out_path.mkdir(parents=True, exist_ok=True)
+        ingest_cache.write_text(ingest_result.model_dump_json(indent=2), encoding="utf-8")
+        print(f"  → cached to {ingest_cache}")
+
+        print(f"  → {ingest_result.page_count} pages, {len(ingest_result.raw_text)} chars, "
+              f"method: {ingest_result.ocr_method}, lang: {ingest_result.detected_language}")
+
+    results["ingest"] = ingest_result
 
     # Stage 2: Segment
     print("[Stage 2/4] Segmenting text...")
@@ -57,12 +78,11 @@ async def run_pipeline(
     # Stage 3: Extract (single LLM call per story)
     print("[Stage 3/4] Extracting data...")
     # Collect known entities from already-extracted stories (for context injection)
-    import json as _json
     known_entities = []
     for seg_info in segment_result.segments:
         story_path = Path(seg_info.file_path)
         if story_path.exists():
-            data = _json.loads(story_path.read_text(encoding="utf-8"))
+            data = json.loads(story_path.read_text(encoding="utf-8"))
             if data.get("entities"):
                 for loc in data["entities"].get("locations", []):
                     if loc.get("name") and loc.get("lat") and loc.get("lng"):

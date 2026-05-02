@@ -75,6 +75,16 @@ def build_context(
     return "\n\n".join(parts)
 
 
+def _normalize_story_data(data: dict) -> None:
+    """Fix common LLM output issues in story data before Pydantic validation."""
+    # Normalize annotations: wrap plain strings in {"note": str}
+    ann = data.get("annotations")
+    if isinstance(ann, list):
+        data["annotations"] = [
+            {"note": a} if isinstance(a, str) else a for a in ann
+        ]
+
+
 async def extract(
     segment_result: SegmentResultV2,
     llm: LLMClient,
@@ -113,6 +123,7 @@ async def extract(
             continue
 
         story_data = json.loads(story_path.read_text(encoding="utf-8"))
+        _normalize_story_data(story_data)
         story = ExtractedStory(**story_data)
 
         if story.extracted:
@@ -147,6 +158,7 @@ async def extract(
                 continue
 
             story_data = json.loads(story_path.read_text(encoding="utf-8"))
+            _normalize_story_data(story_data)
             story = ExtractedStory(**story_data)
 
             if story.extracted or not story.is_content:
