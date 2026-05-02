@@ -1,0 +1,31 @@
+You are analyzing a long chapter from a historical travel journal. Identify natural subdivision points where the narrative shifts to a new story, anecdote, or travel segment.
+
+CONTEXT:
+{context}
+
+CHAPTER TEXT:
+{text}
+
+For each sub-segment, provide:
+- start_anchor: first 30+ characters of the sub-segment (must match text exactly)
+- end_anchor: last 15+ characters of the sub-segment (must match text exactly), or "truncated" if text ends mid-sentence
+- title: descriptive title for this sub-segment
+
+Rules:
+- Only split where there is a clear narrative break (new journey, new location, time skip)
+- Do NOT split mid-story or mid-paragraph
+- Each sub-segment should be at least 500 characters
+- If the chapter is a single coherent narrative, return it as one sub-segment
+
+Return JSON:
+{{
+  "subdivisions": [
+    {{
+      "start_anchor": "first 30+ characters...",
+      "end_anchor": "...last 15+ characters",
+      "title": "sub-segment title"
+    }}
+  ]
+}}
+
+Return ONLY valid JSON.

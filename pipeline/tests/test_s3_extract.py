@@ -393,3 +393,33 @@ def test_combined_prompt_contains_required_sections():
     assert "excerpt" in template
     assert "summary" in template
     assert "entries" in template
+
+
+def test_subdivide_prompt_template():
+    """Subdivision prompt should load and format correctly."""
+    from pathlib import Path
+
+    prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "extraction_subdivide.txt"
+    assert prompt_path.exists()
+    template = prompt_path.read_text()
+    assert "{context}" in template
+    assert "{text}" in template
+    assert "start_anchor" in template
+    assert "end_anchor" in template
+
+    formatted = template.format(context="Test context", text="Test text")
+    assert "Test context" in formatted
+
+
+def test_book_summary_prompt_template():
+    """Book summary prompt should load and format correctly."""
+    from pathlib import Path
+
+    prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "book_summary.txt"
+    assert prompt_path.exists()
+    template = prompt_path.read_text()
+    assert "{text}" in template
+    assert "summary" in template
+
+    formatted = template.format(text="Preface text here")
+    assert "Preface text here" in formatted
