@@ -43,7 +43,14 @@ export function ResultList({ entries, onSelect, selectedId, locationFilter, onCl
           }`}
         >
           <h3 className="font-medium text-sm mb-1">{entry.title}</h3>
-          <p className="text-xs text-gray-500 line-clamp-2 mb-1">{entry.original_text}</p>
+          <div className="text-xs text-gray-600 line-clamp-2">
+            {entry.excerpt_original || entry.original_text?.slice(0, 100)}
+          </div>
+          {(entry.summary_chinese || entry.summary_english) && (
+            <div className="text-xs text-gray-500 line-clamp-1 mt-0.5">
+              {entry.summary_chinese || entry.summary_english}
+            </div>
+          )}
           <div className="flex gap-2 text-xs text-gray-400">
             {entry.authors.map((a) => (
               <span key={a.id}>{a.name}</span>

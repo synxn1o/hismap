@@ -1,7 +1,7 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import type { JournalEntryDetail } from "@/types";
 
-type TranslationTab = "original" | "english" | "modern";
+type TranslationTab = "original" | "excerpt" | "summary";
 
 interface EntryCardProps {
   entry: JournalEntryDetail;
@@ -12,16 +12,24 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const tabs: { key: TranslationTab; label: string; available: boolean }[] = [
     { key: "original", label: "原文", available: true },
-    { key: "english", label: "English", available: !!entry.english_translation },
-    { key: "modern", label: "白话译文", available: !!entry.modern_translation },
+    { key: "excerpt", label: "Excerpt", available: !!entry.excerpt_original },
+    { key: "summary", label: "Summary", available: !!(entry.summary_chinese || entry.summary_english) },
   ];
 
   const availableTabs = tabs.filter((t) => t.available);
 
-  const activeContent: Record<TranslationTab, string | null> = {
+  const activeContent: Record<TranslationTab, React.ReactNode> = {
     original: entry.original_text,
-    english: entry.english_translation,
-    modern: entry.modern_translation,
+    excerpt: entry.excerpt_original
+      ? entry.excerpt_translation
+        ? `${entry.excerpt_original}\n\n${entry.excerpt_translation}`
+        : entry.excerpt_original
+      : null,
+    summary: entry.summary_chinese
+      ? entry.summary_english
+        ? `${entry.summary_chinese}\n\n${entry.summary_english}`
+        : entry.summary_chinese
+      : entry.summary_english,
   };
 
   return (
