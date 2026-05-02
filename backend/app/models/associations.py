@@ -8,6 +8,7 @@ entry_locations = Table(
     Column("entry_id", Integer, ForeignKey("journal_entries.id", ondelete="CASCADE"), primary_key=True),
     Column("location_id", Integer, ForeignKey("locations.id", ondelete="CASCADE"), primary_key=True),
     Column("location_order", Integer, nullable=False, default=0),
+    Column("importance", Integer, nullable=False, server_default="0"),
 )
 
 entry_authors = Table(
