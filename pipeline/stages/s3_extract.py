@@ -22,6 +22,59 @@ def load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.txt").read_text()
 
 
+def build_context(
+    story: ExtractedStory,
+    segment_result: SegmentResultV2,
+    segment_index: int,
+    known_entities: list[dict] | None = None,
+    book_summary: str | None = None,
+) -> str:
+    """Build context string for the combined extraction prompt."""
+    parts = []
+
+    # 1. Book summary
+    if book_summary:
+        parts.append(f"BOOK SUMMARY:\n{book_summary}")
+
+    # 2. Book metadata
+    if story.book_metadata:
+        bm = story.book_metadata
+        parts.append(f"BOOK METADATA:\nTitle: {bm.get('title', 'Unknown')}\nAuthor: {bm.get('author', 'Unknown')}\nDynasty/Era: {bm.get('dynasty', 'Unknown')}")
+
+    # 3. Current chapter title
+    if story.chapter_title:
+        parts.append(f"CURRENT CHAPTER: {story.chapter_title}")
+
+    # 4. Chapter position
+    total = len(segment_result.segments)
+    parts.append(f"CHAPTER POSITION: {segment_index + 1} / {total}")
+
+    # 5. Adjacent chapter titles
+    if segment_index > 0:
+        prev_title = segment_result.segments[segment_index - 1].title
+        parts.append(f"PREVIOUS CHAPTER: {prev_title}")
+    if segment_index < total - 1:
+        next_title = segment_result.segments[segment_index + 1].title
+        parts.append(f"NEXT CHAPTER: {next_title}")
+
+    # 6. Known entities
+    if known_entities:
+        entity_str = ", ".join(f"{e['name']} ({e.get('lat', '?')}, {e.get('lng', '?')})" for e in known_entities[:20])
+        parts.append(f"KNOWN ENTITIES (for consistency):\n{entity_str}")
+
+    # 7. Source language rules
+    lang_rules = {
+        "zh-classical": "Source is classical Chinese. Extract modern Chinese and English translations.",
+        "zh-modern": "Source is modern Chinese. Extract English translation only.",
+        "arabic": "Source is Arabic. Extract English translation only.",
+        "en": "Source is English. No translation needed.",
+    }
+    lang = story.language
+    parts.append(f"SOURCE LANGUAGE: {lang}\n{lang_rules.get(lang, 'Extract appropriate translations.')}")
+
+    return "\n\n".join(parts)
+
+
 async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
     """Stage 3: Extract all data from each story via single LLM call.
 

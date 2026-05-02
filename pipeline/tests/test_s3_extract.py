@@ -218,6 +218,55 @@ async def test_extract_skips_non_content_stories(tmp_path, mock_llm):
     assert result["skipped"] == 1
 
 
+def test_build_context_includes_all_items():
+    """build_context should include all 7 context items."""
+    from pipeline.stages.s3_extract import build_context
+
+    story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Text",
+        source_type="text",
+        chapter_title="The Beginning",
+        book_metadata={
+            "title": "Travels",
+            "author": "Marco Polo",
+            "dynasty": "Yuan",
+        },
+    )
+
+    segment_result = SegmentResultV2(
+        book_slug="test",
+        language="en",
+        segments=[
+            SegmentInfo(id="test-en-001", title="Chapter 1", file_path="/tmp/x.json", original_text_preview="Text"),
+            SegmentInfo(id="test-en-002", title="Chapter 2", file_path="/tmp/y.json", original_text_preview="More"),
+        ],
+    )
+
+    known_entities = [{"name": "Beijing", "lat": 39.9, "lng": 116.4}]
+    book_summary = "A travelogue describing Marco Polo's journey."
+
+    context = build_context(
+        story=story,
+        segment_result=segment_result,
+        segment_index=0,
+        known_entities=known_entities,
+        book_summary=book_summary,
+    )
+
+    # Should contain all context items
+    assert "Travels" in context  # book metadata
+    assert "The Beginning" in context  # chapter title
+    assert "Chapter 1 / 2" in context or "1 / 2" in context  # chapter position
+    assert "Chapter 2" in context  # adjacent chapter
+    assert "Beijing" in context  # known entities
+    assert "travelogue" in context.lower() or "marco polo" in context.lower()  # book summary
+
+
 def test_combined_prompt_template_loads():
     """The combined extraction prompt template should load and format correctly."""
     from pathlib import Path
