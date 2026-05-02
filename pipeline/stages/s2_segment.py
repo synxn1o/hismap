@@ -80,11 +80,14 @@ def merge_ocr_stories(ocr_pages: list[dict]) -> list[dict]:
                 target["text"] += "\n\n" + story.get("text", "")
                 target["continues_to_next"] = story.get("continues_to_next", False)
             else:
-                merged.append({
+                entry = {
                     "title": story.get("title", ""),
                     "text": story.get("text", ""),
                     "continues_to_next": story.get("continues_to_next", False),
-                })
+                }
+                if "is_content" in story:
+                    entry["is_content"] = story["is_content"]
+                merged.append(entry)
 
     return merged
 
@@ -189,11 +192,13 @@ Return JSON:
     {{
       "title": "story title",
       "text": "full story text",
+      "is_content": true,
       "continues_from_prev": false,
       "continues_to_next": false
     }}
   ]
 }}
+Set is_content=false for non-narrative sections: table of contents, preface, index, bibliography, publisher info, translator's notes.
 Use continues_from_prev/continues_to_next flags for stories that span chunk boundaries.
 
 TEXT:
@@ -203,9 +208,12 @@ TEXT:
             data = json.loads(raw)
             all_stories.extend(data.get("stories", []))
         except Exception:
-            all_stories.append({"title": None, "text": chunk})
+            all_stories.append({"title": None, "text": chunk, "is_content": True})
 
-    return merge_ocr_stories([{"stories": all_stories}])
+    merged = merge_ocr_stories([{"stories": all_stories}])
+
+    # Filter out non-content stories
+    return [s for s in merged if s.get("is_content", True)]
 
 
 def _split_into_chunks(text: str, max_chars: int = 20000) -> list[str]:

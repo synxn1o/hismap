@@ -156,3 +156,23 @@ async def test_segment_ocr_path():
         result = await segment(ingest_result, output_dir=tmpdir)
         assert len(result.segments) == 1
         assert "Tale" in result.segments[0].title
+
+
+@pytest.mark.asyncio
+async def test_segment_by_llm_filters_non_content():
+    """LLM fallback should exclude non-content stories from output."""
+    from pipeline.stages.s2_segment import _segment_by_llm
+
+    llm = AsyncMock()
+    llm.extract_json = AsyncMock(return_value=json.dumps({
+        "stories": [
+            {"title": "Table of Contents", "text": "Chapter 1... 1\nChapter 2... 15", "is_content": False},
+            {"title": "Chapter 1", "text": "The journey began in 1271.", "is_content": True},
+            {"title": "Bibliography", "text": "See also: Smith 2020", "is_content": False},
+        ]
+    }))
+
+    stories = await _segment_by_llm("Some text", llm)
+    # Only content stories should remain
+    assert len(stories) == 1
+    assert stories[0]["title"] == "Chapter 1"
