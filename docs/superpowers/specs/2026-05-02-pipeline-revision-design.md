@@ -253,17 +253,10 @@ Tools are passed in the LLM request body as `tools=[...]`, read from `config.yam
 ```yaml
 # config/config.yaml
 extratools:
-  - type: function
-    function:
-      name: web_search
-      description: "Search the web for historical context about places, people, or events"
-      parameters:
-        type: object
-        properties:
-          query:
-            type: string
-            description: "Search query"
-        required: ["query"]
+  - type: web_search
+    max_keyword: 6
+    force_search: false
+    limit: 6
 ```
 
 S3 constructs the LLM call as:
@@ -278,7 +271,7 @@ response = await llm.client.chat.completions.create(
 
 - LLM decides when to invoke tools (for unfamiliar place names, historical figures)
 - Tool results are parsed and written into `annotations[]`
-- `max_keywords=3`, `limit=2` per search, `force_search=False`
+- Tool definitions are read from `config.yaml` `extratools` section, allowing easy extension with new tool types
 
 ### Config Changes (`config/config.yaml`)
 
@@ -286,17 +279,10 @@ Add `extratools` section for tool definitions passed to LLM requests:
 
 ```yaml
 extratools:
-  - type: function
-    function:
-      name: web_search
-      description: "Search the web for historical context about places, people, or events"
-      parameters:
-        type: object
-        properties:
-          query:
-            type: string
-            description: "Search query"
-        required: ["query"]
+  - type: web_search
+    max_keyword: 6
+    force_search: false
+    limit: 6
 ```
 
 ---
