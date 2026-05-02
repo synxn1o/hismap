@@ -37,55 +37,59 @@ SAMPLE_SEGMENTATION = json.dumps({
 })
 
 SAMPLE_EXTRACTION = json.dumps({
-    "book_metadata": {
-        "title": "The Travels of Marco Polo",
-        "author": "Marco Polo",
-        "dynasty": "Yuan",
-        "era_start": 1271,
-        "era_end": 1295,
-        "author_biography": "Venetian merchant traveler",
-    },
-    "story_metadata": {
-        "title": "Chapter Title",
-        "chapter_reference": "Chapter 1",
-        "visit_date_approximate": "1271",
-    },
-    "entities": {
-        "locations": [
-            {
-                "name": "Beijing",
-                "modern_name": "Beijing",
-                "ancient_name": "Dadu",
-                "lat": 39.9042,
-                "lng": 116.4074,
-                "location_type": "city",
-                "one_line_summary": "Capital of Yuan Dynasty",
-            }
-        ],
-        "persons": ["Marco Polo"],
-        "dates": ["1271"],
-        "keywords": ["travel"],
-    },
-    "translations": {
-        "modern_chinese": None,
-        "english": "Translation text",
-    },
-    "credibility": {
-        "era_context": "13th century",
-        "political_context": "Yuan Dynasty",
-        "religious_context": "Mixed",
-        "social_environment": "Trade",
-        "credibility_score": 0.8,
-        "notes": "First-hand account",
-    },
-    "annotations": [
+    "entries": [
         {
-            "source": "web_search",
-            "query": "test query",
-            "url": "https://example.com",
-            "snippet": "test snippet",
+            "start_anchor": "Marco Polo set out from Venice",
+            "end_anchor": "great journey eastward.",
+            "is_content": True,
+            "is_truncated": False,
+            "story_metadata": {
+                "title": "Chapter Title",
+                "chapter_reference": "Chapter 1",
+                "visit_date_approximate": "1271",
+            },
+            "excerpt": {
+                "original": "Marco Polo set out from Venice on his great journey eastward.",
+                "translation": "Marco Polo set out from Venice on his great journey eastward.",
+            },
+            "summary": {
+                "chinese": "马可波罗从威尼斯出发东行。",
+                "english": "Marco Polo set out from Venice on his great journey.",
+            },
+            "entities": {
+                "locations": [
+                    {
+                        "name": "Beijing",
+                        "modern_name": "Beijing",
+                        "ancient_name": "Dadu",
+                        "lat": 39.9042,
+                        "lng": 116.4074,
+                        "location_type": "city",
+                        "one_line_summary": "Capital of Yuan Dynasty",
+                    }
+                ],
+                "persons": ["Marco Polo"],
+                "dates": ["1271"],
+                "keywords": ["travel"],
+            },
+            "credibility": {
+                "era_context": "13th century",
+                "political_context": "Yuan Dynasty",
+                "religious_context": "Mixed",
+                "social_environment": "Trade",
+                "credibility_score": 0.8,
+                "notes": "First-hand account",
+            },
+            "annotations": [
+                {
+                    "source": "web_search",
+                    "query": "test query",
+                    "url": "https://example.com",
+                    "snippet": "test snippet",
+                }
+            ],
         }
-    ],
+    ]
 })
 
 
@@ -154,9 +158,8 @@ async def test_rtf_english_pipeline(tmp_path):
     for seg in segment_result.segments:
         story_data = json.loads(Path(seg.file_path).read_text(encoding="utf-8"))
         assert story_data["extracted"] is True
-        assert story_data["book_metadata"] is not None
         assert story_data["entities"] is not None
-        assert story_data["book_metadata"]["title"] == "The Travels of Marco Polo"
+        assert story_data["summary_english"] is not None or story_data["summary_chinese"] is not None
 
 
 @pytest.mark.asyncio
@@ -201,7 +204,7 @@ async def test_rtf_chinese_pipeline(tmp_path):
     for seg in segment_result.segments:
         story_data = json.loads(Path(seg.file_path).read_text(encoding="utf-8"))
         assert story_data["extracted"] is True
-        assert story_data["book_metadata"] is not None
+        assert story_data["entities"] is not None
 
 
 @pytest.mark.asyncio
@@ -270,7 +273,7 @@ async def test_pdf_pipeline_mocked_ocr(tmp_path):
     for seg in segment_result.segments:
         story_data = json.loads(Path(seg.file_path).read_text(encoding="utf-8"))
         assert story_data["extracted"] is True
-        assert story_data["book_metadata"] is not None
+        assert story_data["entities"] is not None
 
 
 @pytest.mark.asyncio
@@ -323,7 +326,6 @@ async def test_full_pipeline_via_runner(tmp_path):
     for seg in segment_r.segments:
         story_data = json.loads(Path(seg.file_path).read_text(encoding="utf-8"))
         if story_data["extracted"]:
-            assert story_data["book_metadata"] is not None
             assert story_data["entities"] is not None
 
     # Verify S4 was skipped
