@@ -178,3 +178,41 @@ async def test_extract_handles_llm_failure(tmp_path, mock_llm):
     assert saved["extracted"] is False
     assert saved["error"] is not None
     assert "API error" in saved["error"]
+
+
+@pytest.mark.asyncio
+async def test_extract_skips_non_content_stories(tmp_path, mock_llm):
+    """S3 should skip extraction for stories marked is_content=False."""
+    from pipeline.stages.s3_extract import extract
+
+    story = ExtractedStory(
+        id="test-en-004",
+        book_slug="test",
+        language="en",
+        sequence=4,
+        title="Table of Contents",
+        original_text="Chapter 1... 1\nChapter 2... 15",
+        source_type="text",
+        extracted=False,
+        is_content=False,
+    )
+    path = tmp_path / "test-en-004.json"
+    path.write_text(story.model_dump_json(indent=2))
+
+    segment = SegmentInfo(
+        id="test-en-004",
+        title="Table of Contents",
+        file_path=str(path),
+        original_text_preview="Chapter 1...",
+    )
+    segment_result = SegmentResultV2(book_slug="test", language="en", segments=[segment])
+
+    result = await extract(segment_result, mock_llm)
+
+    # LLM should NOT be called for non-content
+    mock_llm.chat_with_tools.assert_not_called()
+    # Story should be marked as extracted with non_content note
+    saved = json.loads(path.read_text())
+    assert saved["extracted"] is True
+    assert saved["error"] == "non_content"
+    assert result["skipped"] == 1

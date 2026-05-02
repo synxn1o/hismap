@@ -46,6 +46,14 @@ async def extract(segment_result: SegmentResultV2, llm: LLMClient) -> dict:
             stats["skipped"] += 1
             continue
 
+        if not story.is_content:
+            story.extracted = True
+            story.error = "non_content"
+            story_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
+            stats["skipped"] += 1
+            print(f"    [{seg_info.id}] skipped (non-content)")
+            continue
+
         prompt = prompt_template.format(text=story.original_text)
         print(f"    [{seg_info.id}] extracting...", end=" ", flush=True)
 
