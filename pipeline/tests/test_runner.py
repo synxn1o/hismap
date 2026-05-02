@@ -10,7 +10,7 @@ from pipeline.models import (
 
 
 @pytest.mark.asyncio
-async def test_run_pipeline_dry_run():
+async def test_run_pipeline_dry_run(tmp_path):
     """Test pipeline stages are called in order with mocked LLM."""
     mock_ingest = IngestResult(
         source_file="test.txt",
@@ -44,12 +44,18 @@ async def test_run_pipeline_dry_run():
         results = await run_pipeline(
             "test.txt",
             config={"llm": {"base_url": "x", "api_key": "x", "model": "x"}},
+            output_dir=str(tmp_path / "output"),
             skip_output=True,
         )
 
         m_ingest.assert_called_once()
         m_segment.assert_called_once()
         m_extract.assert_called_once()
+
+        # Verify new parameters are passed to extract
+        call_kwargs = m_extract.call_args
+        assert "book_summary" in call_kwargs.kwargs
+        assert "known_entities" in call_kwargs.kwargs
 
         assert "ingest" in results
         assert "segment" in results

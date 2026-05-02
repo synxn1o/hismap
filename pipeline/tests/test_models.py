@@ -155,3 +155,89 @@ def test_extracted_story_source_type_literal():
             id="t-001", book_slug="t", language="en", sequence=1,
             title="T", original_text="text", source_type="invalid",
         )
+
+
+def test_extracted_story_is_content_field():
+    """ExtractedStory should have is_content field defaulting to True."""
+    story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Some text",
+        source_type="text",
+    )
+    assert story.is_content is True
+
+    # Non-content story
+    story_nc = ExtractedStory(
+        id="test-en-002",
+        book_slug="test",
+        language="en",
+        sequence=2,
+        title="Table of Contents",
+        original_text="Chapter 1... 1\nChapter 2... 15",
+        source_type="text",
+        is_content=False,
+    )
+    assert story_nc.is_content is False
+
+
+def test_extracted_story_new_fields():
+    """ExtractedStory should support excerpt, summary, persons, dates fields."""
+    story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Some text",
+        source_type="text",
+        chapter_title="The Beginning",
+        is_truncated=False,
+        needs_subdivision=False,
+        excerpt_original="The journey began...",
+        excerpt_translation="The journey began...",
+        summary_chinese="A journey description.",
+        summary_english="A journey description.",
+        persons=["Marco Polo"],
+        dates=["1271"],
+    )
+    assert story.chapter_title == "The Beginning"
+    assert story.is_truncated is False
+    assert story.needs_subdivision is False
+    assert story.excerpt_original == "The journey began..."
+    assert story.excerpt_translation == "The journey began..."
+    assert story.summary_chinese == "A journey description."
+    assert story.summary_english == "A journey description."
+    assert story.persons == ["Marco Polo"]
+    assert story.dates == ["1271"]
+
+
+def test_extracted_story_serialization_roundtrip_with_new_fields():
+    """New fields survive model_dump -> model_validate roundtrip."""
+    story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Some text",
+        source_type="text",
+        is_content=False,
+        chapter_title="The Beginning",
+        excerpt_original="Journey...",
+        summary_chinese="旅行描述",
+        summary_english="A journey description.",
+        persons=["Marco Polo"],
+        dates=["1271"],
+    )
+    data = story.model_dump()
+    restored = ExtractedStory(**data)
+    assert restored.is_content is False
+    assert restored.chapter_title == "The Beginning"
+    assert restored.excerpt_original == "Journey..."
+    assert restored.summary_chinese == "旅行描述"
+    assert restored.persons == ["Marco Polo"]
+    assert restored.dates == ["1271"]

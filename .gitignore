@@ -8,3 +8,9 @@ build/
 .pytest_cache/
 .vite/
 tsconfig.*.tsbuildinfo
+CLAUDE.md
+pyrightconfig.json
+test_book/
+output/
+.superpowers/
+.claude/

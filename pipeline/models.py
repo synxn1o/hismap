@@ -188,6 +188,18 @@ class ExtractedStory(BaseModel):
     created_at: str = ""
     extracted: bool = False
     error: str | None = None
+    # Segmentation metadata
+    chapter_title: str | None = None
+    is_content: bool = True
+    is_truncated: bool = False
+    needs_subdivision: bool = False
+    # Excerpt and summary (populated by S3)
+    excerpt_original: str | None = None
+    excerpt_translation: str | None = None
+    summary_chinese: str | None = None
+    summary_english: str | None = None
+    persons: list[str] | None = None
+    dates: list[str] | None = None
     # Extracted fields (populated by S3)
     book_metadata: dict | None = None
     story_metadata: dict | None = None

@@ -80,8 +80,8 @@ async def output_to_db(
                     name=name,
                     modern_name=loc_data.get("modern_name"),
                     ancient_name=loc_data.get("ancient_name"),
-                    latitude=loc_data.get("lat", 0.0),
-                    longitude=loc_data.get("lng", 0.0),
+                    latitude=loc_data.get("lat") or 0.0,
+                    longitude=loc_data.get("lng") or 0.0,
                     location_type=loc_data.get("location_type"),
                     one_line_summary=loc_data.get("one_line_summary"),
                 )
@@ -90,23 +90,29 @@ async def output_to_db(
                 loc_map[name] = loc
                 stats.locations += 1
 
-    # 4. Create JournalEntry for each story
+    # 4. Create JournalEntry for each content story
     for story in stories:
+        if not story.is_content:
+            continue
+
         rel_path = f"pipeline/output/{segment_result.book_slug}/{story.id}.json"
 
         story_meta = story.story_metadata or {}
         entities = story.entities or {}
-        translations = story.translations or {}
         credibility = story.credibility or {}
 
         je = JournalEntry(
             book_id=book.id if book else None,
             title=story_meta.get("title", story.title),
             original_text=rel_path,
-            modern_translation=translations.get("modern_chinese"),
-            english_translation=translations.get("english"),
+            excerpt_original=story.excerpt_original,
+            excerpt_translation=story.excerpt_translation,
+            summary_chinese=story.summary_chinese,
+            summary_english=story.summary_english,
             chapter_reference=story_meta.get("chapter_reference"),
             keywords=entities.get("keywords"),
+            persons=story.persons,
+            dates=story.dates,
             era_context=credibility.get("era_context"),
             political_context=credibility.get("political_context"),
             religious_context=credibility.get("religious_context"),

@@ -1,0 +1,20 @@
+You are analyzing the preface/序言 of a historical travel journal. Extract a concise summary that captures:
+1. Who is the author and what is their background
+2. What journey(s) does the book describe
+3. When and where did the events take place
+4. What is the historical significance of this work
+5. Any notable characteristics (language, style, perspective)
+
+PREFACE TEXT:
+{text}
+
+Return a JSON object:
+{{
+  "summary": "2-3 paragraph summary covering the above points",
+  "author_background": "brief author bio",
+  "journey_description": "what journeys are described",
+  "time_period": "when the events took place",
+  "significance": "historical significance"
+}}
+
+Return ONLY valid JSON.

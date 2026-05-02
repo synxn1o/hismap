@@ -112,3 +112,70 @@ async def test_output_writes_to_db(story_files):
     assert result.locations >= 1
     assert result.entries == 2
     mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_output_skips_non_content_stories(tmp_path):
+    """S4 should not create JournalEntry for non-content stories."""
+    from pipeline.stages.s4_output import output_to_db
+
+    content_story = ExtractedStory(
+        id="test-en-001",
+        book_slug="test",
+        language="en",
+        sequence=1,
+        title="Chapter 1",
+        original_text="Journey text",
+        source_type="text",
+        extracted=True,
+        is_content=True,
+        book_metadata={"title": "Test Book", "author": "Author"},
+        story_metadata={"title": "Chapter 1"},
+        entities={"locations": [], "keywords": ["travel"]},
+        translations={"modern_chinese": None, "english": "Journey text"},
+        credibility={"era_context": "Medieval"},
+    )
+    non_content_story = ExtractedStory(
+        id="test-en-002",
+        book_slug="test",
+        language="en",
+        sequence=2,
+        title="TOC",
+        original_text="Chapter 1... 1",
+        source_type="text",
+        extracted=True,
+        is_content=False,
+    )
+
+    content_path = tmp_path / "test-en-001.json"
+    content_path.write_text(content_story.model_dump_json(indent=2))
+    non_content_path = tmp_path / "test-en-002.json"
+    non_content_path.write_text(non_content_story.model_dump_json(indent=2))
+
+    segment_result = SegmentResultV2(
+        book_slug="test",
+        language="en",
+        segments=[
+            SegmentInfo(id="test-en-001", title="Chapter 1", file_path=str(content_path), original_text_preview="Journey"),
+            SegmentInfo(id="test-en-002", title="TOC", file_path=str(non_content_path), original_text_preview="Chapter 1"),
+        ],
+    )
+
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.execute = AsyncMock()
+
+    with patch("pipeline.stages.s4_output.Book") as MockBook, \
+         patch("pipeline.stages.s4_output.Author") as MockAuthor, \
+         patch("pipeline.stages.s4_output.JournalEntry") as MockJE, \
+         patch("pipeline.stages.s4_output.Location") as MockLoc:
+        MockBook.return_value = MagicMock(id=1)
+        MockAuthor.return_value = MagicMock(id=1)
+        MockJE.return_value = MagicMock(id=1)
+        MockLoc.return_value = MagicMock(id=1)
+
+        result = await output_to_db(segment_result, session)
+
+    # Only 1 entry should be created (the content story)
+    assert result.entries == 1

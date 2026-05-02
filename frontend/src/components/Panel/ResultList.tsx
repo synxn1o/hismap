@@ -1,4 +1,5 @@
 import type { JournalEntry } from "@/types";
+import { getSummary, type Language } from "@/lib/language";
 
 interface ResultListProps {
   entries: JournalEntry[];
@@ -6,9 +7,10 @@ interface ResultListProps {
   selectedId: number | null;
   locationFilter?: { lat: number; lng: number; radiusKm: number } | null;
   onClearFilter?: () => void;
+  language?: Language;
 }
 
-export function ResultList({ entries, onSelect, selectedId, locationFilter, onClearFilter }: ResultListProps) {
+export function ResultList({ entries, onSelect, selectedId, locationFilter, onClearFilter, language = 'zh' }: ResultListProps) {
   if (entries.length === 0) {
     return (
       <div className="p-4 text-sm text-gray-400">
@@ -43,7 +45,14 @@ export function ResultList({ entries, onSelect, selectedId, locationFilter, onCl
           }`}
         >
           <h3 className="font-medium text-sm mb-1">{entry.title}</h3>
-          <p className="text-xs text-gray-500 line-clamp-2 mb-1">{entry.original_text}</p>
+          <div className="text-xs text-gray-600 line-clamp-2">
+            {entry.excerpt_original || entry.original_text?.slice(0, 100)}
+          </div>
+          {getSummary(entry, language) && (
+            <div className="text-xs text-gray-500 line-clamp-1 mt-0.5">
+              {getSummary(entry, language)}
+            </div>
+          )}
           <div className="flex gap-2 text-xs text-gray-400">
             {entry.authors.map((a) => (
               <span key={a.id}>{a.name}</span>

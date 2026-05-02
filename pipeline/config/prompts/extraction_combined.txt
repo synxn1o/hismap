@@ -1,0 +1,75 @@
+You are a historical text analysis expert analyzing a travel journal. Perform the following tasks in a SINGLE pass:
+
+1. FILTER: Identify content vs non-content sections
+2. SEGMENT: Split multi-story chunks into separate narrative units
+3. EXTRACT: Extract all fields for each content entry. All the date MUST use "yyyy-mm-dd" format enclosed in double quotes without explaining text
+
+CONTEXT:
+{context}
+
+STORY TEXT:
+{text}
+
+SEGMENTATION RULES:
+- Each entry = one independent narrative unit (story, anecdote, travel segment)
+- is_content=false for: table of contents, preface, index, bibliography, translator's notes, publisher info
+- A chunk typically contains 1-3 entries; do not over-segment
+- Anchors must be in document order and non-overlapping
+- Use the first 30+ characters as start_anchor and last 15+ characters as end_anchor
+
+TRUNCATION DETECTION:
+- is_truncated=true ONLY when: sentence is grammatically incomplete, narrative suddenly breaks off
+- Do NOT flag if: text is long but coherent, contains multiple locations but same journey
+
+Return a single JSON object with an "entries" array:
+
+{{
+  "entries": [
+    {{
+      "start_anchor": "first 30+ characters of this entry",
+      "end_anchor": "last 15+ characters of this entry",
+      "is_content": true,
+      "is_truncated": false,
+      "story_metadata": {{
+        "title": "story/chapter title",
+        "chapter_reference": "chapter reference if any",
+        "visit_date_approximate": "yyyy[-mm-dd] - yyyy[-mm-dd]" #approximate year of story
+      }},
+      "excerpt": {{
+        "original": "2-3 sentence excerpt in source language capturing the essence",
+        "translation": "English translation of the excerpt"
+      }},
+      "summary": {{
+        "chinese": "2-3 sentence summary in modern Chinese",
+        "english": "2-3 sentence summary in English"
+      }},
+      "entities": {{
+        "locations": [
+          {{
+            "name": "location name",
+            "modern_name": "modern name or null",
+            "ancient_name": "historical name or null",
+            "lat": 0.0,
+            "lng": 0.0,
+            "location_type": "city/region/river/mountain/temple/pass/port/route/other",
+            "one_line_summary": "one line about this location"
+          }}
+        ],
+        "persons": ["person names mentioned"],
+        "dates": ["yyyy-mm-dd"], #dates or time explicitly refered in context
+        "keywords": ["3-5 keywords describing era, regime, and cultural background"]
+      }},
+      "credibility": {{
+        "era_context": "historical era description",
+        "political_context": "political situation",
+        "religious_context": "religious context if relevant",
+        "social_environment": "social conditions",
+        "credibility_score": 0.0,
+        "notes": "credibility notes"
+      }},
+      "annotations": []
+    }}
+  ]
+}}
+
+Return ONLY valid JSON. No markdown fences.

@@ -1,12 +1,15 @@
 import { useEntry, useStoryContent } from "@/api/hooks";
+import { Link } from "react-router-dom";
 import { X } from "lucide-react";
+import type { Language } from "@/lib/language";
 
 interface EntryDetailProps {
   entryId: number;
   onClose: () => void;
+  language?: Language;
 }
 
-export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
+export function EntryDetail({ entryId, onClose, language = 'zh' }: EntryDetailProps) {
   const { data: entry, isLoading } = useEntry(entryId);
   const { data: story } = useStoryContent(entry?.original_text ?? null);
 
@@ -49,23 +52,54 @@ export function EntryDetail({ entryId, onClose }: EntryDetailProps) {
           </p>
         </div>
 
-        {/* Translations */}
-        {(story?.translations?.modern_chinese ?? entry.modern_translation) && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">白话译文</h3>
-            <p className="text-sm leading-relaxed">
-              {story?.translations?.modern_chinese ?? entry.modern_translation}
-            </p>
+        {/* Excerpt */}
+        {entry.excerpt_original && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-1">Excerpt</h4>
+            <p className="text-sm text-gray-600 italic">{entry.excerpt_original}</p>
+            {entry.excerpt_translation && (
+              <p className="text-sm text-gray-500 mt-1">{entry.excerpt_translation}</p>
+            )}
           </div>
         )}
-        {(story?.translations?.english ?? entry.english_translation) && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">English Translation</h3>
-            <p className="text-sm leading-relaxed italic">
-              {story?.translations?.english ?? entry.english_translation}
-            </p>
+
+        {/* Summary */}
+        {(entry.summary_chinese || entry.summary_english) && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-1">Summary</h4>
+            {language === 'zh' ? (
+              <>
+                {entry.summary_chinese && <p className="text-sm text-gray-600">{entry.summary_chinese}</p>}
+                {entry.summary_english && <p className="text-sm text-gray-500 mt-1">{entry.summary_english}</p>}
+              </>
+            ) : (
+              <>
+                {entry.summary_english && <p className="text-sm text-gray-600">{entry.summary_english}</p>}
+                {entry.summary_chinese && <p className="text-sm text-gray-500 mt-1">{entry.summary_chinese}</p>}
+              </>
+            )}
           </div>
         )}
+
+        {/* Persons */}
+        {entry.persons && entry.persons.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-1">Persons</h4>
+            <div className="flex flex-wrap gap-1">
+              {entry.persons.map((p, i) => (
+                <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">{p}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* View Full Text button */}
+        <Link
+          to={`/entries/${entry.id}`}
+          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2"
+        >
+          View Full Text →
+        </Link>
 
         {/* Keywords */}
         {(story?.entities?.keywords ?? entry.keywords) && (

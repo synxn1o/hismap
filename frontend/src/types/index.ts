@@ -71,16 +71,22 @@ export interface JournalEntry {
   book_id: number | null;
   title: string;
   original_text: string;
-  modern_translation: string | null;
-  english_translation: string | null;
+  excerpt_original: string | null;
+  excerpt_translation: string | null;
+  summary_chinese: string | null;
+  summary_english: string | null;
   chapter_reference: string | null;
   keywords: string[] | null;
   keyword_annotations: Record<string, unknown> | null;
+  persons: string[] | null;
+  dates: string[] | null;
   era_context: string | null;
   political_context: string | null;
   religious_context: string | null;
   social_environment: string | null;
   visit_date_approximate: string | null;
+  credibility: Record<string, unknown> | null;
+  annotations: unknown[] | null;
   locations: LocationBrief[];
   authors: AuthorBrief[];
 }

@@ -59,6 +59,36 @@ def segment_by_headings(text: str) -> list[dict]:
     return segments
 
 
+def segment_by_chapters(text: str, llm=None) -> list[dict]:
+    """Segment text using chapter_detector.py chain-of-responsibility pattern.
+
+    Falls back to segment_by_headings if chapter_detector finds < 2 chapters.
+    """
+    try:
+        from pipeline.chapter_detector import build_default_chain
+
+        chain = build_default_chain(llm_client=llm)
+        chapters = chain.detect(text, strategy="auto")
+
+        if len(chapters) >= 2:
+            stories = []
+            for ch in chapters:
+                story = {
+                    "title": ch.title,
+                    "text": ch.text,
+                    "chapter_title": ch.title,
+                    "needs_subdivision": len(ch.text) > 5000,
+                }
+                stories.append(story)
+            return stories
+    except Exception:
+        pass
+
+    # Fallback to regex headings
+    headings = segment_by_headings(text)
+    return [{"title": h["heading"], "text": h["text"], "chapter_title": h["heading"]} for h in headings]
+
+
 def merge_ocr_stories(ocr_pages: list[dict]) -> list[dict]:
     """Merge stories across OCR pages using continues_from_prev/continues_to_next flags."""
     merged: list[dict] = []
@@ -80,11 +110,14 @@ def merge_ocr_stories(ocr_pages: list[dict]) -> list[dict]:
                 target["text"] += "\n\n" + story.get("text", "")
                 target["continues_to_next"] = story.get("continues_to_next", False)
             else:
-                merged.append({
+                entry = {
                     "title": story.get("title", ""),
                     "text": story.get("text", ""),
                     "continues_to_next": story.get("continues_to_next", False),
-                })
+                }
+                if "is_content" in story:
+                    entry["is_content"] = story["is_content"]
+                merged.append(entry)
 
     return merged
 
@@ -94,8 +127,10 @@ def make_segment_id(book_slug: str, language: str, sequence: int) -> str:
 
 
 def save_segment_json(story: ExtractedStory, output_dir: str) -> str:
-    """Save story as JSON file. Returns file path."""
+    """Save story as JSON file. Returns file path. Skips if file already exists."""
     out_path = Path(output_dir) / f"{story.id}.json"
+    if out_path.exists():
+        return str(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(story.model_dump_json(indent=2), encoding="utf-8")
     return str(out_path)
@@ -109,7 +144,7 @@ async def segment(
     """Stage 2: Segment text into stories, assign IDs, save JSON files.
 
     Three paths:
-    A. Text with headings -> regex split
+    A. Text with headings -> chapter-based segmentation
     B. Text without headings -> LLM fallback
     C. OCR results -> merge by continuation flags
     """
@@ -125,18 +160,18 @@ async def segment(
         raw_stories = merge_ocr_stories(ingest_result.ocr_pages)
         source_type = "ocr"
     else:
-        # Path A: Try regex heading detection
-        headings = segment_by_headings(ingest_result.raw_text)
+        # Path A: Try chapter-based segmentation
+        chapters = segment_by_chapters(ingest_result.raw_text, llm=llm)
 
-        if len(headings) >= 2 and headings[0]["heading"] is not None:
-            raw_stories = [{"title": h["heading"], "text": h["text"]} for h in headings]
+        if len(chapters) >= 2 and chapters[0].get("title") is not None:
+            raw_stories = chapters
             source_type = "text"
         elif llm is not None:
             # Path B: LLM fallback
             raw_stories = await _segment_by_llm(ingest_result.raw_text, llm)
             source_type = "text"
         else:
-            raw_stories = [{"title": None, "text": h["text"]} for h in headings]
+            raw_stories = [{"title": None, "text": h["text"]} for h in segment_by_headings(ingest_result.raw_text)]
             source_type = "text"
 
     segments = []
@@ -158,6 +193,8 @@ async def segment(
             source_type=source_type,
             created_at=now,
             extracted=False,
+            chapter_title=story.get("chapter_title"),
+            needs_subdivision=story.get("needs_subdivision", False),
         )
 
         file_path = save_segment_json(extracted, output_dir)
@@ -189,11 +226,13 @@ Return JSON:
     {{
       "title": "story title",
       "text": "full story text",
+      "is_content": true,
       "continues_from_prev": false,
       "continues_to_next": false
     }}
   ]
 }}
+Set is_content=false for non-narrative sections: table of contents, preface, index, bibliography, publisher info, translator's notes.
 Use continues_from_prev/continues_to_next flags for stories that span chunk boundaries.
 
 TEXT:
@@ -203,9 +242,12 @@ TEXT:
             data = json.loads(raw)
             all_stories.extend(data.get("stories", []))
         except Exception:
-            all_stories.append({"title": None, "text": chunk})
+            all_stories.append({"title": None, "text": chunk, "is_content": True})
 
-    return merge_ocr_stories([{"stories": all_stories}])
+    merged = merge_ocr_stories([{"stories": all_stories}])
+
+    # Filter out non-content stories
+    return [s for s in merged if s.get("is_content", True)]
 
 
 def _split_into_chunks(text: str, max_chars: int = 20000) -> list[str]:
