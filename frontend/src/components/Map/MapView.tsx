@@ -92,7 +92,7 @@ export function MapView({ locations, focusTarget, entries, onMarkerClick }: MapV
         const dateB = b.visit_date_approximate ? parseInt(b.visit_date_approximate, 10) : NaN;
         const aValid = !isNaN(dateA);
         const bValid = !isNaN(dateB);
-        if (aValid && bValid) return dateA - dateB;
+        if (aValid && bValid) return dateA - dateB || a.id - b.id;
         if (aValid) return -1;
         if (bValid) return 1;
         return a.id - b.id;
