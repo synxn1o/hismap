@@ -35,7 +35,7 @@ async def get_entries(
         stmt = stmt.where(
             or_(
                 JournalEntry.original_text.ilike(f"%{keyword}%"),
-                JournalEntry.modern_translation.ilike(f"%{keyword}%"),
+                JournalEntry.summary_chinese.ilike(f"%{keyword}%"),
                 JournalEntry.title.ilike(f"%{keyword}%"),
             )
         )
@@ -102,8 +102,9 @@ async def search_entries(db: AsyncSession, query: str, limit: int = 50) -> list[
         .where(
             or_(
                 JournalEntry.original_text.ilike(f"%{query}%"),
-                JournalEntry.modern_translation.ilike(f"%{query}%"),
-                JournalEntry.english_translation.ilike(f"%{query}%"),
+                JournalEntry.summary_chinese.ilike(f"%{query}%"),
+                JournalEntry.summary_english.ilike(f"%{query}%"),
+                JournalEntry.excerpt_original.ilike(f"%{query}%"),
                 JournalEntry.title.ilike(f"%{query}%"),
                 JournalEntry.era_context.ilike(f"%{query}%"),
                 JournalEntry.political_context.ilike(f"%{query}%"),
