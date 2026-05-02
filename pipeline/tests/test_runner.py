@@ -51,6 +51,11 @@ async def test_run_pipeline_dry_run():
         m_segment.assert_called_once()
         m_extract.assert_called_once()
 
+        # Verify new parameters are passed to extract
+        call_kwargs = m_extract.call_args
+        assert "book_summary" in call_kwargs.kwargs
+        assert "known_entities" in call_kwargs.kwargs
+
         assert "ingest" in results
         assert "segment" in results
         assert "extract" in results

@@ -48,7 +48,20 @@ async def run_pipeline(
 
     # Stage 3: Extract (single LLM call per story)
     print("[Stage 3/4] Extracting data...")
-    extract_stats = await extract(segment_result, llm)
+    # Collect known entities from already-extracted stories (for context injection)
+    import json as _json
+    known_entities = []
+    for seg_info in segment_result.segments:
+        story_path = Path(seg_info.file_path)
+        if story_path.exists():
+            data = _json.loads(story_path.read_text(encoding="utf-8"))
+            if data.get("entities"):
+                for loc in data["entities"].get("locations", []):
+                    if loc.get("name") and loc.get("lat") and loc.get("lng"):
+                        known_entities.append(loc)
+
+    book_summary = getattr(ingest_result, 'metadata', {}).get("book_summary") if hasattr(ingest_result, 'metadata') and ingest_result.metadata else None
+    extract_stats = await extract(segment_result, llm, book_summary=book_summary, known_entities=known_entities)
     results["extract"] = extract_stats
     print(f"  → processed: {extract_stats['processed']}, "
           f"skipped: {extract_stats['skipped']}, failed: {extract_stats['failed']}")
