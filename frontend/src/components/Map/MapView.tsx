@@ -86,8 +86,17 @@ export function MapView({ locations, focusTarget, entries, onMarkerClick }: MapV
     }> = [];
 
     byBook.forEach((bookEntries, bookId) => {
-      // Sort by entry id (proxy for chronological order)
-      const sorted = [...bookEntries].sort((a, b) => a.id - b.id);
+      // Sort by visit_date_approximate first, fall back to entry id
+      const sorted = [...bookEntries].sort((a, b) => {
+        const dateA = a.visit_date_approximate ? parseInt(a.visit_date_approximate, 10) : NaN;
+        const dateB = b.visit_date_approximate ? parseInt(b.visit_date_approximate, 10) : NaN;
+        const aValid = !isNaN(dateA);
+        const bValid = !isNaN(dateB);
+        if (aValid && bValid) return dateA - dateB;
+        if (aValid) return -1;
+        if (bValid) return 1;
+        return a.id - b.id;
+      });
 
       // Collect all locations in sequence
       const routeLocations: Array<{ latitude: number; longitude: number; order: number }> = [];
