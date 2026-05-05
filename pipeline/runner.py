@@ -20,7 +20,7 @@ async def run_pipeline(
     """Run the 4-stage pipeline on a single file.
 
     Args:
-        file_path: Path to input file (.pdf/.txt/.md/.rtf)
+        file_path: Path to input file (.pdf/.txt/.md/.rtf/.epub)
         config: Config dict (loads from config.yaml if None)
         output_dir: Directory for story JSON files (default: pipeline/output/{book_slug})
         skip_output: If True, skip S4 DB output (dry-run mode)
