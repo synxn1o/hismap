@@ -2,6 +2,28 @@
 
 Historical travel journal exploration platform. Processes historical texts (Chinese/Arabic travel writing) through an LLM pipeline and displays extracted entries and locations on an interactive map.
 
+## Why HiSMap
+
+HiSMap helps readers explore historical travel writing through diverse cultural perspectives, not just a single narrative lens.
+
+It converts long, cross-cultural texts into a map-first, multimedia experience with AI, making it easier to compare viewpoints, follow journeys geographically, and quickly retrieve context while traveling.
+
+## Features
+
+- **4-stage AI pipeline (ingest -> segment -> extract -> output)**: Supports PDF/TXT/MD/RTF input, OCR for scanned PDFs, language detection, chapter/story segmentation, and structured extraction of locations, people, dates, summaries, credibility signals, and annotations.
+- **Structured storage + reproducible outputs**: Writes extracted stories as JSON artifacts and persists normalized entities (books, authors, entries, locations, relations) into PostgreSQL.
+- **Public query API**: FastAPI endpoints for locations, entries, books, authors, search, and filter options, plus static story JSON serving for rich detail views.
+- **Admin API with authentication**: JWT-protected CRUD routes for managing books, authors, entries, and locations.
+- **Interactive map experience**: Leaflet map with marker clustering, route arrows generated from entry sequences, map focus transitions, and OpenStreetMap deep links.
+- **Reader-facing exploration tools**: Full-text and keyword search, dynasty/type/era filters, bilingual toggle (ZH/EN), entry detail panels, location detail layers, and related-location context.
+
+## Use Cases
+
+- **Comparative reading**: Compare how different travel writers describe the same region, route, or event.
+- **Geo-guided historical reading**: Follow narratives on the map instead of reading long chapters in isolation.
+- **Travel context lookup**: Quickly retrieve background for a location while planning or during a trip.
+- **Digital humanities workflows**: Convert long-form historical sources into queryable, reusable datasets.
+
 ## Architecture
 
 ```
@@ -51,3 +73,5 @@ python -m pipeline.runner path/to/book.pdf
 - **Backend**: Python 3.11+, FastAPI, SQLAlchemy (async), Alembic, PostgreSQL
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Leaflet, React Query
 - **Pipeline**: Pydantic v2, PyMuPDF, OpenAI-compatible LLM API
+
+
