@@ -80,3 +80,40 @@ def test_identify_preface_pages():
     preface, remaining = identify_preface(text)
     assert "序言" in preface or "马可·波罗" in preface
     assert "第一章" in remaining or "1271年" in remaining
+
+
+@pytest.mark.asyncio
+async def test_ingest_epub_uses_epub_extractor(monkeypatch):
+    """EPUB ingest should route through EPUB extractor and return text ingest result."""
+    from pipeline.stages import s1_ingest
+
+    monkeypatch.setattr(
+        s1_ingest,
+        "extract_text_from_epub",
+        lambda _path: ("Chapter 1\nChapter 2", 2),
+    )
+
+    with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as f:
+        file_path = f.name
+    try:
+        config = {"ocr": {"base_url": "x", "api_key": "x", "model": "x"}}
+        result = await s1_ingest.ingest(file_path, config)
+        assert result.file_type == "text"
+        assert result.page_count == 2
+        assert "Chapter 1" in result.raw_text
+    finally:
+        Path(file_path).unlink()
+
+
+@pytest.mark.asyncio
+async def test_ingest_unsupported_file_type_raises_value_error():
+    """Unsupported suffix should still raise ValueError."""
+    from pipeline.stages.s1_ingest import ingest
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".doc", delete=False, encoding="utf-8") as f:
+        f.write("dummy")
+        f.flush()
+        config = {"ocr": {"base_url": "x", "api_key": "x", "model": "x"}}
+        with pytest.raises(ValueError, match="Unsupported file type"):
+            await ingest(f.name, config)
+    Path(f.name).unlink()

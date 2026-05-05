@@ -5,7 +5,11 @@ from pathlib import Path
 
 from langdetect import detect
 
-from pipeline.core.pdf_parser import extract_text_from_file, extract_text_from_pdf
+from pipeline.core.pdf_parser import (
+    extract_text_from_epub,
+    extract_text_from_file,
+    extract_text_from_pdf,
+)
 from pipeline.models import IngestResult
 
 
@@ -93,6 +97,19 @@ async def ingest(file_path: str, config: dict) -> IngestResult:
             file_type="text",
             raw_text=text,
             page_count=1,
+            ocr_method="direct",
+            book_slug=book_slug,
+            detected_language=lang,
+        )
+
+    elif suffix == ".epub":
+        text, section_count = extract_text_from_epub(file_path)
+        lang = detect_language(text)
+        return IngestResult(
+            source_file=file_path,
+            file_type="text",
+            raw_text=text,
+            page_count=section_count,
             ocr_method="direct",
             book_slug=book_slug,
             detected_language=lang,

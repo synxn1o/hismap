@@ -10,7 +10,7 @@ It converts long, cross-cultural texts into a map-first, multimedia experience w
 
 ## Features
 
-- **4-stage AI pipeline (ingest -> segment -> extract -> output)**: Supports PDF/TXT/MD/RTF input, OCR for scanned PDFs, language detection, chapter/story segmentation, and structured extraction of locations, people, dates, summaries, credibility signals, and annotations.
+- **4-stage AI pipeline (ingest -> segment -> extract -> output)**: Supports PDF/TXT/MD/RTF/EPUB input, OCR for scanned PDFs, language detection, chapter/story segmentation, and structured extraction of locations, people, dates, summaries, credibility signals, and annotations.
 - **Structured storage + reproducible outputs**: Writes extracted stories as JSON artifacts and persists normalized entities (books, authors, entries, locations, relations) into PostgreSQL.
 - **Public query API**: FastAPI endpoints for locations, entries, books, authors, search, and filter options, plus static story JSON serving for rich detail views.
 - **Admin API with authentication**: JWT-protected CRUD routes for managing books, authors, entries, and locations.
@@ -39,7 +39,7 @@ It converts long, cross-cultural texts into a map-first, multimedia experience w
                                   └──────────┘
 ```
 
-**Pipeline** — 4-stage LLM-powered text processing: ingest (PDF/text/OCR) → segment → extract → store. Handles scanned PDFs via OCR, detects language, and uses LLMs to extract locations, dates, persons, and metadata from historical narratives.
+**Pipeline** — 4-stage LLM-powered text processing: ingest (PDF/EPUB/text/OCR) → segment → extract → store. Handles scanned PDFs via OCR, detects language, and uses LLMs to extract locations, dates, persons, and metadata from historical narratives.
 
 **Backend** — Async FastAPI API with public read endpoints and JWT-protected admin routes. SQLAlchemy + Alembic for database management.
 
